@@ -4,7 +4,7 @@ El workflow [Pruebas](https://github.com/gafapa/tutor/actions/workflows/tests.ym
 
 ## Dominio y compilación
 
-En Ubuntu 24.04 y Windows Server 2025 se ejecutan todas las pruebas de `tests/*.test.ts` y `npm run build`: comprobación de TypeScript, compilación del backend e interfaz. El registro TAP queda disponible en el artefacto correspondiente. La aplicación distribuida sigue dirigida a Windows; compilar y probar el dominio en Linux no demuestra compatibilidad del escritorio en Linux.
+En Ubuntu 24.04 y Windows Server 2025 se ejecutan todas las pruebas de `tests/*.test.ts` y `npm run build`: comprobación de TypeScript, compilación del backend e interfaz. El registro de resultados queda disponible en el artefacto correspondiente. La aplicación distribuida sigue dirigida a Windows; compilar y probar el dominio en Linux no demuestra compatibilidad del escritorio en Linux.
 
 ## Aplicación empaquetada en Windows
 
