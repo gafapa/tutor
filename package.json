@@ -1,0 +1,155 @@
+{
+  "name": "tutor-local",
+  "version": "0.13.0",
+  "private": true,
+  "description": "Un espacio personal de aprendizaje con datos e inteligencia artificial locales.",
+  "author": "Tutor Local",
+  "type": "module",
+  "main": "build/electron/main.js",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "tsc --noEmit -p tsconfig.json && tsc -p electron/tsconfig.json && vite build && node scripts/finish-build.mjs",
+    "start": "electron .",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "test:desktop": "node scripts/smoke-desktop.mjs",
+    "test:planning": "node scripts/smoke-planning.mjs",
+    "test:education": "node scripts/smoke-education.mjs",
+    "test:study": "node scripts/smoke-study.mjs",
+    "test:assessment": "node scripts/smoke-assessment.mjs",
+    "test:rubrics": "node scripts/smoke-rubrics.mjs",
+    "test:rubrics:ai": "node scripts/smoke-rubrics-ai.mjs",
+    "prepare:runtime": "node scripts/prepare-runtime.mjs && node scripts/prepare-vc-runtime.mjs && npm run prepare:ocr && npm run prepare:semantic",
+    "dist": "npm run build && node scripts/prepare-ocr.mjs && node scripts/prepare-semantic.mjs && electron-builder --win nsis --x64",
+    "test:moodle": "node scripts/smoke-moodle.mjs",
+    "test:moodle:desktop": "node scripts/smoke-moodle-desktop.mjs",
+    "test:pedagogy": "node scripts/smoke-pedagogy.mjs",
+    "test:pedagogy:ai": "node scripts/smoke-pedagogy-ai.mjs",
+    "test:release": "node scripts/verify-release.mjs",
+    "test:connections": "node scripts/smoke-connections.mjs",
+    "test:reports": "node scripts/smoke-reports.mjs",
+    "prepare:pdf-check": "node scripts/prepare-pdf-check.mjs",
+    "test:reports:pdf": "node scripts/check-report-pdfs.mjs",
+    "test:goals": "node scripts/smoke-goals.mjs",
+    "test:materials": "node scripts/smoke-materials.mjs",
+    "prepare:ocr": "tsc -p electron/tsconfig.json && node scripts/prepare-ocr.mjs",
+    "test:ocr": "node scripts/smoke-ocr.mjs",
+    "prepare:semantic": "tsc -p electron/tsconfig.json && node scripts/prepare-semantic.mjs",
+    "test:semantic": "node scripts/smoke-semantic.mjs"
+  },
+  "dependencies": {
+    "@huggingface/tokenizers": "0.2.0",
+    "@napi-rs/canvas": "1.0.10",
+    "htmlparser2": "^10.0.0",
+    "lucide-react": "^0.468.0",
+    "mammoth": "^1.9.0",
+    "onnxruntime-node": "1.30.0",
+    "pdfjs-dist": "^6.3.289",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "saxes": "^6.0.0",
+    "sql.js": "^1.13.0",
+    "tesseract.js": "7.0.0",
+    "yauzl": "^3.4.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/sql.js": "^1.4.9",
+    "@types/yauzl": "^3.4.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "7zip-bin": "^5.2.0",
+    "electron": "^44.5.1",
+    "electron-builder": "^26.0.0",
+    "playwright": "^1.56.0",
+    "pptxgenjs": "^4.0.1",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "vite": "^7.1.0"
+  },
+  "build": {
+    "electronDist": "node_modules/electron/dist",
+    "appId": "es.tutorlocal.app",
+    "productName": "Tutor Local",
+    "artifactName": "Tutor-Local-${version}-Instalador.${ext}",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "build/**/*",
+      "dist/**/*",
+      "assets/icon.ico",
+      "package.json",
+      "!node_modules/onnxruntime-node/bin/napi-v6/linux/**/*",
+      "!node_modules/onnxruntime-node/bin/napi-v6/darwin/**/*",
+      "!node_modules/onnxruntime-node/bin/napi-v6/win32/arm64/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": ".tools/llama-runtime",
+        "to": "llama-runtime",
+        "filter": [
+          "*.dll",
+          "llama-server.exe",
+          "LICENSE*",
+          "*info.json"
+        ]
+      },
+      {
+        "from": ".tools/ocr-runtime",
+        "to": "ocr-runtime",
+        "filter": [
+          "*.traineddata",
+          "LICENSE",
+          "runtime-info.json"
+        ]
+      },
+      {
+        "from": ".tools/semantic-runtime",
+        "to": "semantic-runtime",
+        "filter": [
+          "*.onnx",
+          "*.json",
+          "LICENSE*"
+        ]
+      },
+      {
+        "from": ".tools/llama-runtime",
+        "to": "app.asar.unpacked/node_modules/onnxruntime-node/bin/napi-v6/win32/x64",
+        "filter": [
+          "*140*.dll"
+        ]
+      }
+    ],
+    "asarUnpack": [
+      "node_modules/@napi-rs/**/*",
+      "node_modules/onnxruntime-node/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico",
+      "signExecutable": false
+    },
+    "nsis": {
+      "differentialPackage": false,
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "deleteAppDataOnUninstall": false,
+      "installerLanguages": [
+        "es_ES"
+      ],
+      "language": "3082",
+      "include": "assets/installer.nsh"
+    }
+  },
+  "overrides": {
+    "pptxgenjs": {
+      "image-size": "^2.0.4"
+    }
+  }
+}

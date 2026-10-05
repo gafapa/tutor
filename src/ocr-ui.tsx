@@ -1,0 +1,73 @@
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Camera, ShieldCheck } from 'lucide-react';
+import type { Capture, CaptureReview, CaptureSource, OcrDraft, OcrOptions, OcrProgress, OcrReviewInput } from '../shared/ocr';
+import type { Snapshot } from '../shared/types';
+import { Modal, Spinner, dateLabel, errorMessage } from './ui';
+
+type Props = { subjectId: string; data: Snapshot; destination?: 'material' | 'attempt'; refresh(): Promise<void>; notify(message: string, error?: boolean): void; onClose(): void; stored?: { capture: Capture; reviews: CaptureReview[] } };
+
+export function CaptureImage({ capture }: { capture: Capture }) {
+  const [marks, setMarks] = useState(true), [zoom, setZoom] = useState(false), uncertain = capture.recognition.words.filter(word => word.confidence < 70);
+  return <div className="ocr-source"><div className="ocr-image-scroll"><div className="ocr-image" style={{ width: zoom ? '220%' : '100%' }}><img src={`data:image/jpeg;base64,${capture.image.base64}`} alt={`Imagen revisada de ${capture.name}`} />{marks && <svg aria-hidden="true" viewBox={`0 0 ${capture.image.width} ${capture.image.height}`}>{uncertain.map((word, index) => <rect key={index} x={word.box.x0} y={word.box.y0} width={word.box.x1 - word.box.x0} height={word.box.y1 - word.box.y0} />)}</svg>}</div></div><button className="text-button" type="button" onClick={() => setZoom(!zoom)}>{zoom ? 'Ajustar imagen al espacio' : 'Ampliar imagen'}</button><label className="ocr-check"><input type="checkbox" checked={marks} onChange={event => setMarks(event.target.checked)} /> Marcar fragmentos que el lector considera dudosos</label><p className="subtle-note">Confianza del lector: {Math.round(capture.recognition.confidence)} %. También puede equivocarse en fragmentos sin marcar. Este indicador no evalúa tu aprendizaje.</p>{uncertain.length > 0 && <details><summary>Fragmentos con dudas ({uncertain.length})</summary><p className="ocr-words">{uncertain.map(word => `${word.text} (${Math.round(word.confidence)} %)`).join(' · ')}</p></details>}</div>;
+}
+
+export function OcrCaptureDialog({ subjectId, data, destination = 'material', refresh, notify, onClose, stored }: Props) {
+  const [options, setOptions] = useState<OcrOptions>({ subjectId, language: 'spa', firstPage: 1, lastPage: 1, rotation: 0 });
+  const [drafts, setDrafts] = useState<OcrDraft[]>([]), [progress, setProgress] = useState<OcrProgress | null>(null);
+  const [reading, setReading] = useState(false), [saving, setSaving] = useState(false), [error, setError] = useState('');
+  const [text, setText] = useState(stored?.reviews.at(-1)?.text ?? ''), [name, setName] = useState(stored?.capture.name ?? '');
+  const [confirmed, setConfirmed] = useState(false), [target, setTarget] = useState(destination), [statement, setStatement] = useState(''), [conceptId, setConceptId] = useState('');
+  const pending = useRef<string[]>([]), live = useRef(true), ownReading = useRef(false);
+  const capture = stored?.capture ?? drafts[0]?.capture;
+  useEffect(() => { pending.current = drafts.map(draft => draft.draftId); }, [drafts]);
+  useEffect(() => { live.current = true; return () => { live.current = false; if (ownReading.current) void window.tutor.cancelOcr().catch(() => {}); if (pending.current.length) void window.tutor.discardOcrDrafts(pending.current).catch(() => {}); }; }, []);
+  useEffect(() => {
+    if (!reading) return;
+    let disposed = false; const update = () => { void window.tutor.ocrProgress().then(value => { if (!disposed) setProgress(value); }).catch(() => {}); };
+    update(); const timer = setInterval(update, 400); return () => { disposed = true; clearInterval(timer); };
+  }, [reading]);
+  function selectDraft(rows: OcrDraft[]) { setDrafts(rows); pending.current = rows.map(row => row.draftId); setText(rows[0]?.capture.recognition.text ?? ''); setName(rows[0]?.capture.name ?? ''); setConfirmed(false); }
+  async function read(event: FormEvent) {
+    event.preventDefault(); setError(''); setReading(true); ownReading.current = true;
+    try { const rows = await window.tutor.recognizeDocument(options); if (live.current) selectDraft(rows); else if (rows.length) await window.tutor.discardOcrDrafts(rows.map(row => row.draftId)); }
+    catch (failure) { if (live.current) setError(errorMessage(failure)); }
+    finally { ownReading.current = false; if (live.current) { setReading(false); setProgress(null); } }
+  }
+  async function save(event: FormEvent) {
+    event.preventDefault(); if (!capture || !confirmed) return; setSaving(true); setError('');
+    const input: OcrReviewInput = { text, confirmed: true, destination: target, name, statement, conceptId: conceptId || null };
+    try {
+      if (stored) { await window.tutor.reviewCapture({ ...input, captureId: capture.id, previousId: stored.reviews.at(-1)!.id }); await refresh(); notify('Nueva revisión guardada. Las versiones anteriores se conservan.'); onClose(); }
+      else { const result = await window.tutor.commitOcrDraft({ ...input, draftId: drafts[0].draftId }); selectDraft(drafts.slice(1)); await refresh(); notify(result.duplicate ? 'Revisión guardada. El texto ya estaba registrado y no se ha duplicado.' : target === 'material' ? 'Material revisado guardado con su imagen original.' : 'Resolución revisada guardada sin corregir. Puedes comprobar sus pasos desde Dificultades.'); if (drafts.length === 1) onClose(); }
+    } catch (failure) { setError(errorMessage(failure)); } finally { setSaving(false); }
+  }
+  async function skip() { try { await window.tutor.discardOcrDrafts([drafts[0].draftId]); selectDraft(drafts.slice(1)); if (drafts.length === 1) onClose(); } catch (failure) { setError(errorMessage(failure)); } }
+  return <Modal title={capture ? 'Revisar la captura' : 'Leer imagen o PDF escaneado'} wide onClose={() => { if (!saving) onClose(); }}>
+    {!capture ? <form className="form-stack" onSubmit={read}><p className="modal-intro">Elige una fotografía, PNG, JPEG, WebP o un PDF escaneado (hasta 20 MB). La lectura se hace en este ordenador. El manuscrito y las fórmulas pueden requerir una transcripción manual.</p><div className="form-row"><label>Idioma del documento<select aria-label="Idioma del reconocimiento" value={options.language} onChange={event => setOptions({ ...options, language: event.target.value as OcrOptions['language'] })} disabled={reading}><option value="spa">Castellano</option><option value="glg">Gallego</option><option value="eng">Inglés</option><option value="spa+eng">Castellano e inglés</option></select></label><label>Girar imagen<select value={options.rotation} onChange={event => setOptions({ ...options, rotation: Number(event.target.value) as OcrOptions['rotation'] })} disabled={reading}><option value={0}>Sin girar</option><option value={90}>90° a la derecha</option><option value={180}>180°</option><option value={270}>90° a la izquierda</option></select></label></div><div className="form-row"><label>Primera página del PDF<input type="number" value={options.firstPage} min={1} max={300} required onChange={event => setOptions({ ...options, firstPage: Number(event.target.value) })} disabled={reading} /></label><label>Última página del PDF<input type="number" value={options.lastPage} min={options.firstPage} max={Math.min(300, options.firstPage + 9)} required onChange={event => setOptions({ ...options, lastPage: Number(event.target.value) })} disabled={reading} /></label></div><p className="subtle-note">Selecciona hasta 10 páginas consecutivas. Para una imagen, usa 1–1. Cada página se revisa y guarda por separado.</p>{reading && <div className="ocr-reading" role="status"><Spinner label={progress?.name ? `${progress.name} · ${progress.page || 1}/${progress.total || 1}` : 'Seleccionando y preparando el documento…'} />{progress?.stage === 'recognizing' && <progress aria-label="Progreso del reconocimiento" max={1} value={progress.fraction} />}</div>}{error && <p className="form-error" role="alert">{error}</p>}<div className="modal-actions"><button className="button secondary" type="button" onClick={() => { if (reading) void window.tutor.cancelOcr().catch(failure => setError(errorMessage(failure))); else onClose(); }}>{reading ? 'Cancelar lectura' : 'Cancelar'}</button><button className="button primary" disabled={reading}><Camera size={17} /> Seleccionar archivo y leer</button></div></form> : <form className="form-stack" onSubmit={save}>
+      <p className="modal-intro">{capture.name}{drafts.length > 1 ? ` · ${drafts.length} páginas pendientes de revisión` : ''}. Compara con la imagen y corrige letras, signos y números antes de guardar.</p>
+      <div className="ocr-review-grid"><CaptureImage capture={capture} /><div><label>Texto revisado<textarea aria-label="Texto revisado" value={text} onChange={event => { setText(event.target.value); setConfirmed(false); }} rows={13} maxLength={target === 'attempt' ? 20000 : 100000} required disabled={saving} /></label><details className="ocr-original"><summary>Reconocimiento original</summary><pre>{capture.recognition.text || 'No se ha reconocido texto. Puedes transcribirlo mirando la imagen.'}</pre></details></div></div>
+      {stored && <details className="ocr-original"><summary>Revisiones anteriores ({stored.reviews.length})</summary>{stored.reviews.map((review, index) => <div key={review.id}><strong>Revisión {index + 1} · {dateLabel(review.createdAt)}</strong><pre>{review.text}</pre></div>)}</details>}
+      <div className="form-row"><label>Guardar como<select value={target} onChange={event => setTarget(event.target.value as 'material' | 'attempt')} disabled={saving}><option value="material">Material de la asignatura</option><option value="attempt">Resolución propia sin corregir</option></select></label><label>Título<input value={name} maxLength={120} required onChange={event => setName(event.target.value)} disabled={saving} /></label></div>
+      {target === 'attempt' && <><label>Enunciado del ejercicio<textarea value={statement} required maxLength={10000} rows={2} onChange={event => setStatement(event.target.value)} disabled={saving} /></label><label>Concepto<select value={conceptId} onChange={event => setConceptId(event.target.value)} disabled={saving}><option value="">Sin vincular a un concepto</option>{data.concepts.filter(row => row.subjectId === subjectId).map(row => <option key={row.id} value={row.id}>{row.name}</option>)}</select></label><p className="subtle-note">Esta captura registra tu resolución, sin nota ni corrección automática. Los análisis posteriores usarán el texto que confirmes.</p></>}
+      <label className="ocr-check"><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} required disabled={saving} /> He comparado el texto con la imagen y corregido los errores de lectura.</label>
+      <p className="subtle-note"><ShieldCheck size={15} /> Se guarda una imagen reducida sin metadatos junto al texto, dentro del historial cifrado. El archivo original permanece en su ubicación.</p>
+      {error && <p className="form-error" role="alert">{error}</p>}<div className="modal-actions">{!stored && <button className="button secondary" type="button" onClick={skip} disabled={saving}>Descartar esta página</button>}<button className="button primary" disabled={saving || !confirmed || !text.trim()}>{saving ? <Spinner label="Guardando…" /> : stored ? 'Guardar nueva revisión' : 'Guardar texto revisado'}</button></div>
+    </form>}
+  </Modal>;
+}
+
+export function CaptureLink({ source }: { source?: CaptureSource }) {
+  const [detail, setDetail] = useState<{ capture: Capture; reviews: CaptureReview[] }>(), [error, setError] = useState('');
+  if (!source) return null;
+  return <>{source.removed ? <p className="subtle-note">La imagen original se ha eliminado. Se conserva el texto revisado.</p> : <button className="text-button" onClick={async () => { setError(''); try { setDetail(await window.tutor.captureData(source.captureId)); } catch (failure) { setError(errorMessage(failure)); } }}><Camera size={16} /> Ver imagen y revisión original</button>}{error && <p className="form-error">{error}</p>}{detail && <Modal title={detail.capture.name} wide onClose={() => setDetail(undefined)}><CaptureImage capture={detail.capture} /><div className="ocr-original"><h3>Texto de esta revisión</h3><pre>{detail.reviews.find(row => row.id === source.reviewId)?.text}</pre><details><summary>Reconocimiento original</summary><pre>{detail.capture.recognition.text}</pre></details></div></Modal>}</>;
+}
+
+export function CaptureLibrary(props: Omit<Props, 'onClose' | 'stored'>) {
+  const [detail, setDetail] = useState<{ capture: Capture; reviews: CaptureReview[] }>(), [deleting, setDeleting] = useState<string>();
+  const rows = props.data.captures.filter(row => row.subjectId === props.subjectId);
+  if (!rows.length) return null;
+  return <section className="capture-library"><div className="section-heading"><h2>Imágenes revisadas</h2><span className="count-chip">{rows.length}</span></div><p className="subtle-note">Conserva el original y cada revisión del texto. Puedes borrar la imagen y mantener los apuntes o resoluciones ya revisados.</p>{rows.map(row => <div className="capture-row" key={row.id}><div><strong>{row.name}</strong><span>{row.width} × {row.height} · {dateLabel(row.createdAt)} · {props.data.captureReviews.filter(review => review.captureId === row.id).length} revisiones</span></div><div className="capture-actions"><button className="button secondary" onClick={async () => { try { setDetail(await window.tutor.captureData(row.id)); } catch (failure) { props.notify(errorMessage(failure), true); } }}>Ver y revisar</button><button className="button secondary" aria-label={`Eliminar imagen de ${row.name}`} onClick={() => setDeleting(row.id)}>Eliminar imagen</button></div></div>)}
+    {detail && <OcrCaptureDialog {...props} stored={detail} onClose={() => setDetail(undefined)} />}
+    {deleting && <Modal title="Eliminar la imagen de la captura" onClose={() => setDeleting(undefined)}><p className="modal-intro">Se borrarán la imagen, el reconocimiento original y sus revisiones. Se conservarán los materiales y resoluciones con el texto que ya confirmaste. El archivo original de tu ordenador permanece en su ubicación.</p><div className="modal-actions"><button className="button secondary" onClick={() => setDeleting(undefined)}>Cancelar</button><button className="button danger" onClick={async () => { try { await window.tutor.deleteCapture(deleting); await props.refresh(); setDeleting(undefined); props.notify('Imagen y revisiones eliminadas.'); } catch (failure) { props.notify(errorMessage(failure), true); } }}>Eliminar imagen y revisiones</button></div></Modal>}
+  </section>;
+}

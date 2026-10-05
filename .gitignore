@@ -1,0 +1,28 @@
+node_modules/
+build/
+dist/
+release/
+.tools/
+test-results/
+tmp/
+*.log
+.env*
+!.env.example
+
+# Datos privados del alumno, credenciales y claves locales
+*.tutor
+vault-key.bin
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Modelos descargados para uso local
+*.gguf
+*.onnx
+*.traineddata

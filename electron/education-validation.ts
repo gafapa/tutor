@@ -1,0 +1,18 @@
+import { z } from 'zod';
+import { validDay } from '../shared/calendar.js';
+export const educationId = z.uuid();
+const ids = z.array(educationId).max(100).refine(values => new Set(values).size === values.length, 'Hay referencias repetidas.');
+const name = z.string().trim().min(1).max(120);
+const date = z.string().refine(validDay, 'La fecha no es válida.');
+const timestamp = z.iso.datetime();
+export const curriculumInput = z.object({ subjectId: educationId, kind: z.enum(['competency', 'criterion', 'content', 'outcome']), code: z.string().max(50), title: name, description: z.string().max(4000), conceptIds: ids, relatedIds: ids });
+export const curriculumRow = curriculumInput.extend({ id: educationId, createdAt: timestamp });
+export const unitInput = z.object({ subjectId: educationId, title: name, objectives: z.string().max(4000), startsOn: date.nullable(), endsOn: date.nullable(), status: z.enum(['pending', 'current', 'taught']), prerequisiteIds: ids, conceptIds: ids, curriculumIds: ids, materialIds: ids });
+export const unitRow = unitInput.extend({ id: educationId, position: z.number().int().min(0).max(10000), createdAt: timestamp });
+export const cardInput = z.object({ subjectId: educationId, conceptId: educationId.nullable(), front: z.string().trim().min(1).max(2000), back: z.string().trim().min(1).max(10000) });
+const cardSource = z.object({ materialId: educationId, materialVersion: z.number().int().positive(), page: z.number().int().min(1).max(300), quote: z.string().min(1).max(2000) });
+export const cardRow = cardInput.extend({ id: educationId, origin: z.enum(['manual', 'material', 'attempt']), source: cardSource.nullable(), evidenceIds: ids, approved: z.boolean(), revision: z.number().int().positive(), createdAt: timestamp });
+export const cardRevisionRow = cardRow.omit({ approved: true }).extend({ cardId: educationId });
+export const reviewRow = z.object({ id: educationId, subjectId: educationId, cardId: educationId, revision: z.number().int().positive(), rating: z.enum(['again', 'hard', 'good', 'easy']), createdAt: timestamp });
+export const portfolioInput = z.object({ subjectId: educationId, title: name, kind: z.enum(['work', 'project', 'reflection', 'attempt']), content: z.string().trim().min(1).max(50000), reflection: z.string().max(10000), conceptIds: ids, evidenceIds: ids });
+export const portfolioRow = portfolioInput.extend({ id: educationId, automatic: z.boolean(), createdAt: timestamp });
