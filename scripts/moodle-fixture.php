@@ -39,6 +39,10 @@ if ($mode === 'seed' && empty($config['courseId'])) {
     assign_capability('webservice/rest:use', CAP_ALLOW, $studentrole, context_system::instance());
     $assignment = $generator->create_module('assign', ['course' => $course->id, 'name' => 'Explicar cuatro bits', 'intro' => '<p>Justifica cuántas combinaciones permiten cuatro bits.</p>', 'introformat' => FORMAT_HTML, 'duedate' => time() + 86400, 'assignsubmission_onlinetext_enabled' => 1, 'assignfeedback_comments_enabled' => 1, 'submissiondrafts' => 0]);
     $withoutdate = $generator->create_module('assign', ['course' => $course->id, 'name' => 'Repaso sin fecha', 'intro' => '<p>Repasa potencias de dos.</p>', 'introformat' => FORMAT_HTML, 'duedate' => 0, 'assignsubmission_onlinetext_enabled' => 1]);
+    // Moodle's feedback read creates an empty attempt after collecting the first submission status.
+    // Prepare that server state before testing unchanged consecutive synchronizations.
+    $blankassign = new assign(context_module::instance($withoutdate->cmid), get_coursemodule_from_id('assign', $withoutdate->cmid), $course);
+    $blankassign->get_user_submission($student->id, true);
     $page = $generator->create_module('page', ['course' => $course->id, 'name' => 'Potencias de dos', 'content' => '<p>Con cuatro bits hay 2<sup>4</sup> = 16 combinaciones.</p>', 'contentformat' => FORMAT_HTML]);
     $resource = $generator->create_module('resource', ['course' => $course->id, 'name' => 'Apuntes de redes', 'defaultfilename' => 'apuntes.txt']);
     $otherresource = $generator->create_module('resource', ['course' => $course->id, 'name' => 'Otros apuntes', 'defaultfilename' => 'apuntes.txt']);

@@ -24,6 +24,9 @@ try {
   assert.equal(activities.length, 2); assert.equal(resources.length, 3);
   assert.equal(imported.materials.filter(m => m.lms).length, 3); assert.ok(imported.materials.some(m => m.text.includes('2^(4) = 16')));
   assert.equal(imported.tasks.length, 2); assert.ok(imported.tasks.some(t => t.dueDate === null));
+  const unsubmitted = activities.find(item => item.data.dueAt === null); assert.ok(unsubmitted);
+  assert.equal(unsubmitted.data.submission.status, 'new'); assert.equal(unsubmitted.data.submission.text, '');
+  assert.equal(imported.tasks.find(item => item.lms?.itemId === unsubmitted.id)?.status, 'pending');
   const task = imported.tasks.find(t => t.lms && imported.lmsItems.find(i => i.id === t.lms.itemId)?.data.moduleId === fixture.config.assignmentModuleId); assert.ok(task); assert.equal(task.status, 'completed');
   assert.ok(activities.some(i => i.data.submission?.text.includes('16 combinaciones'))); assert.ok(imported.lmsItems.some(i => i.data.kind === 'grade' && i.data.raw === 80));
   assert.deepEqual(imported.estimates, initial.estimates); assert.equal(imported.attempts.length, 0);
