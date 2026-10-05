@@ -6,7 +6,7 @@ Tutor personal de escritorio para Windows de 64 bits, en desarrollo. Los datos y
 
 ## Instalación
 
-Abre `release/Tutor-Local-0.13.0-Instalador.exe` y sigue el asistente en castellano. La aplicación incluye sus dependencias y el motor de IA; el alumno no necesita Python, Node.js ni Ollama.
+Descarga el archivo `Tutor-Local-0.13.0-Instalador.exe` desde [GitHub Releases](https://github.com/gafapa/tutor/releases) y sigue el asistente en castellano. La aplicación incluye sus dependencias y el motor de IA; el alumno no necesita Python, Node.js ni Ollama. El archivo `.sha256` y el comprobante `verification.json` acompañan al instalador.
 
 En **Ajustes → Tu tutor local**, el alumno puede activar explícitamente la descarga de Qwen 2.5 1.5B cuantizado (1,12 GB). La descarga procede del repositorio de Qwen en Hugging Face y se verifica con SHA-256. Después, la tutoría funciona sin Internet. La organización, la biblioteca y el banco de ejercicios funcionan sin descargar el modelo.
 
