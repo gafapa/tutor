@@ -120,6 +120,7 @@ Requisitos del desarrollador: Node.js 24 LTS y npm. Estos requisitos no se trasl
 
 ```powershell
 npm ci
+node node_modules/electron/install.js
 npm run prepare:runtime
 ./scripts/create-icon.ps1
 npm run dev

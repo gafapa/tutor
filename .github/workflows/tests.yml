@@ -54,6 +54,8 @@ jobs:
     needs: domain
     runs-on: windows-2025
     timeout-minutes: 90
+    env:
+      electron_config_cache: ${{ github.workspace }}/.tools/electron-downloads
     defaults:
       run:
         shell: powershell
@@ -73,6 +75,7 @@ jobs:
           key: runtimes-windows-x64-${{ hashFiles('electron/*-config.ts', 'scripts/prepare-*.mjs', 'package-lock.json') }}
           path: |
             .tools/llama-runtime.zip
+            .tools/electron-downloads
             .tools/vc_redist.x64.exe
             .tools/ocr-runtime
             .tools/semantic-runtime
@@ -81,6 +84,8 @@ jobs:
             .tools/moodle-test/mariadb.zip
             .tools/pdf-check/*.zip
             .tools/pdf-check/*.whl
+      - name: Instalar el ejecutable de Electron del lockfile
+        run: node node_modules/electron/install.js
       - name: Compilar la aplicación
         run: npm run build
       - name: Preparar llama.cpp, OCR y búsqueda semántica
