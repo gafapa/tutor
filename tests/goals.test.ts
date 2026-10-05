@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, { beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { mkdir, readFile } from 'node:fs/promises';
@@ -11,6 +11,8 @@ import { decrypt, writeEncrypted } from '../electron/vault';
 import type { GoalInput } from '../shared/goals';
 
 const wasm = resolve('node_modules/sql.js/dist/sql-wasm.wasm'), now = new Date('2026-10-02T12:00:00Z');
+// Las operaciones del Store y las consultas usan el mismo día de la fixture.
+beforeEach(context => context.mock.timers.enable({ apis: ['Date'], now: now.getTime() }));
 async function fixture() { const dir = resolve('.tools/goal-tests', randomUUID()); await mkdir(dir, { recursive: true }); const key = randomBytes(32), path = join(dir, 'data.tutor'), store = await Store.open(path, key, wasm), subject = store.createDemo(), concept = store.snapshot().concepts.find(c => c.name === 'Potencias de 2')!; return { store, subject, concept, key, path }; }
 function data(store: Store): GoalsData { return JSON.parse(store.exportData()).tables; }
 function input(subjectId: string, conceptId: string, rest: Partial<GoalInput> = {}): GoalInput { return { subjectId, title: 'Comprender y aplicar potencias', kind: 'improve', description: 'Explicar la regla y comprobar otra pregunta.', conceptIds: [conceptId], targetDays: 3, startsOn: '2026-09-20', dueOn: '2026-10-05', supersedesId: null, ...rest }; }

@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile, access } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import net from 'node:net';
+await import('./prepare-moodle-dependencies.mjs');
 const root = resolve('.tools/moodle-test'), phpRoot = join(root, 'php'), dbRoot = join(root, 'mariadb/mariadb-11.4.13-winx64');
 const php = join(phpRoot, 'php.exe'), moodle = join(root, 'moodle'), data = join(root, 'database');
 async function port() { const server = net.createServer(); await new Promise(r => server.listen(0, '127.0.0.1', r)); const value = server.address().port; await new Promise(r => server.close(r)); return value; }

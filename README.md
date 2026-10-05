@@ -1,5 +1,7 @@
 # Tutor Local
 
+[![Pruebas](https://github.com/gafapa/tutor/actions/workflows/tests.yml/badge.svg)](https://github.com/gafapa/tutor/actions/workflows/tests.yml)
+
 Tutor personal de escritorio para Windows de 64 bits, en desarrollo. Los datos y las respuestas de la IA se procesan en el ordenador del alumno. El alcance completo y sus avances se registran en [los 80 requisitos](docs/requirements.md).
 
 ## Instalación
@@ -111,6 +113,8 @@ El centro debe habilitar REST y las funciones de lectura correspondientes; el pe
 Las notas y las entregas en línea se guardan como información de Moodle. Las entregas con archivos, los intentos históricos anteriores a la conexión y otros LMS todavía necesitan ampliación. La compatibilidad real comprobada hasta ahora corresponde a Moodle 4.5.14+ con un alumno sintético y un servicio de lectura; los permisos del Moodle de cada centro pueden variar.
 
 ## Desarrollo
+
+GitHub Actions ejecuta las pruebas y la compilación en Linux y Windows. Después prepara Moodle y los modelos locales, construye el instalador y comprueba los 17 recorridos empaquetados, los informes PDF y la instalación/desinstalación silenciosa en Windows. Los informes y las capturas sintéticas quedan disponibles como artefactos. El alcance y los límites se explican en [las pruebas de CI](docs/ci.md).
 
 Requisitos del desarrollador: Node.js 24 LTS y npm. Estos requisitos no se trasladan al alumno.
 
