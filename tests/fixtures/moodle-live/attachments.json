@@ -1,0 +1,13 @@
+{
+  "courseShortname": "TUTOR-LOCAL-MATH-TEST",
+  "sectionNumber": 4,
+  "activityName": "Prueba técnica · Archivos de entrega",
+  "syntheticDataOnly": true,
+  "purpose": "Additional file-submission qualification; preserve the original 26 submitted and graded assignments.",
+  "onlineTextEnabled": true,
+  "fileSubmissionsEnabled": true,
+  "maximumFiles": 1,
+  "files": ["attachments/response.txt"],
+  "grade": 10,
+  "feedback": "Evaluación sintética de adjuntos: procedimiento correcto, comprobación explícita y unidades coherentes. 10/10."
+}

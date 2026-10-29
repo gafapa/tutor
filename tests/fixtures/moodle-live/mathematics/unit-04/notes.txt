@@ -1,0 +1,27 @@
+TEMA 4. Datos, probabilidad y proyecto
+
+Una variable estadística describe una característica observada. Puede ser cualitativa, como el medio de transporte, o cuantitativa, como los minutos de trayecto. Una frecuencia absoluta cuenta observaciones; la relativa divide ese recuento entre el total. Antes de resumir datos hay que saber qué se ha medido, en qué unidad, a quién y cómo se seleccionó la muestra. Una muestra cómoda no representa necesariamente a toda una población.
+La media es la suma de los valores dividida entre el número de datos. La mediana es el valor central al ordenar; si hay dos centrales se promedian. La moda es el valor más frecuente y puede no ser única. El rango es máximo menos mínimo. Un valor extremo afecta mucho a la media, por lo que conviene acompañarla de mediana y dispersión. No compares medias sin revisar tamaños de muestra y unidades.
+Un gráfico de barras representa categorías separadas; un gráfico de líneas suele mostrar evolución temporal. Los ejes deben indicar unidad y escala. Un eje recortado puede exagerar visualmente diferencias; explicarlo no hace falso el dato, pero condiciona su lectura. Correlación no implica causalidad: dos variables pueden cambiar por una causa común. Una conclusión debe distinguir lo observado de lo que solo se sospecha.
+En experimentos con resultados elementales equiprobables, la probabilidad de un suceso es casos favorables entre casos posibles. Está entre cero y uno. El complementario tiene probabilidad 1 − P(A). En extracciones sin reposición la composición cambia y las probabilidades posteriores dependen del resultado anterior. Una simulación orienta, pero unas pocas repeticiones no garantizan la frecuencia teórica exacta.
+
+EJEMPLO RESUELTO
+Los tiempos de cinco trayectos son 10, 12, 12, 14 y 42 minutos.
+La suma es 90 y la media 18 minutos. La mediana es 12, la moda 12 y el rango 32. El trayecto de 42 eleva la media: informar solo de 18 oculta que cuatro de los cinco tiempos no superan 14 minutos.
+
+PRÁCTICA
+1. Calcula media, mediana, moda y rango de 4, 5, 5, 6 y 10.
+2. Construye frecuencias absolutas y relativas para A, B, A, C, B, A.
+3. Calcula la probabilidad de obtener un múltiplo de tres en un dado equilibrado.
+4. Una bolsa contiene tres bolas rojas y dos azules. Calcula P(roja) y P(no roja).
+5. Explica el problema de deducir hábitos de todo un centro preguntando solo a tus amistades.
+6. Corrige: la mediana siempre es uno de los valores observados. Da un contraejemplo.
+7. Analiza cómo puede cambiar la impresión de un gráfico al iniciar el eje vertical en 90.
+8. Explica por qué una coincidencia entre ventas de helado y baños no prueba causalidad.
+9. Diseña una encuesta ficticia de diez registros sin nombres ni datos personales.
+10. Calcula la probabilidad de dos rojas sin reposición de la bolsa de tres rojas y dos azules.
+11. Compara dos grupos con la misma media y diferente dispersión mediante un ejemplo.
+12. Redacta una conclusión con una limitación explícita a partir de una tabla inventada.
+
+REVISIÓN
+Explica el método, comprueba unidades y registra una duda.

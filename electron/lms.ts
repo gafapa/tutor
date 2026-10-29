@@ -1,13 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { LmsConnection, LmsDiscovery, LmsSyncRun } from '../shared/lms.js';
-import { credentialFingerprint, normalizeMoodleUrl } from './lms-utils.js';
+import { credentialFingerprint, normalizeMoodleUrl, shortLmsTitle } from './lms-utils.js';
 import { MoodleClient, type MoodleCredential } from './moodle.js';
 import { LmsCredentials } from './lms-credentials.js';
 import { Store } from './store.js';
 const autoMinutes = z.union([z.literal(0), z.literal(15), z.literal(30), z.literal(60)]);
 export const moodleDiscoveryInput = z.object({ siteUrl: z.string().min(1).max(2000), token: z.string().max(2048).optional(), username: z.string().max(200).optional(), password: z.string().max(1000).optional() }).strict();
 export const moodleConnectInput = z.object({ subjectId: z.uuid(), discoveryId: z.uuid(), courseId: z.number().int().positive(), autoMinutes }).strict();
+export const moodleCoursesInput = z.object({ discoveryId: z.uuid(), autoMinutes, courses: z.array(z.object({ courseId: z.number().int().positive(), subjectId: z.uuid().optional(), subjectName: z.string().trim().min(1).max(120).optional() }).strict().refine(row => !(row.subjectId && row.subjectName), 'Elige una asignatura existente o crea una nueva.')).min(1).max(30) }).strict();
 export const moodleConfigurationInput = z.object({ connectionId: z.uuid(), autoMinutes, enabled: z.boolean() }).strict();
 export class Lms {
   private discoveries = new Map<string, { public: LmsDiscovery; credential: MoodleCredential }>();
@@ -52,6 +53,43 @@ export class Lms {
     this.discoveries.delete(input.discoveryId); return { ...connection, hasCredentials: true };
   }
   connections() { return this.store.rendererSnapshot().lmsConnections.map(c => ({ ...c, hasCredentials: Boolean(this.credentials.get(c.id)), syncing: this.jobs.has(c.id) })); }
+  connectCourses(value: unknown): LmsConnection[] {
+    if (this.store.hasActiveMock()) throw new Error('La conexión estará disponible al terminar el simulacro.');
+    const input = moodleCoursesInput.parse(value), discovery = this.discoveries.get(input.discoveryId);
+    if (!discovery || Date.parse(discovery.public.expiresAt) < Date.now()) throw new Error('La selección ha caducado. Vuelve a consultar tus cursos.');
+    if (new Set(input.courses.map(course => course.courseId)).size !== input.courses.length) throw new Error('Selecciona cada curso una sola vez.');
+    const snapshot = this.store.snapshot(), subjects: {id: string; name: string}[] = [], targets = new Set<string>();
+    const connections = input.courses.map(selection => {
+      const course = discovery.public.courses.find(row => row.id === selection.courseId);
+      if (!course) throw new Error('Uno de los cursos no está disponible en esta selección.');
+      const existing = snapshot.lmsConnections.filter(row => row.siteUrl === discovery.public.siteUrl && row.courseId === course.id);
+      if (existing.some(row => row.subjectId !== selection.subjectId)) throw new Error('Un curso ya tiene una asignatura local. Selecciona esa asignatura para reconectarlo.');
+      const subjectId = selection.subjectId ?? randomUUID();
+      if (targets.has(subjectId)) throw new Error('Cada curso debe tener una asignatura diferente.');
+      targets.add(subjectId);
+      if (selection.subjectId) {
+        this.store.requireSubject(subjectId);
+        if (snapshot.lmsConnections.some(row => row.subjectId === subjectId && (row.siteUrl !== discovery.public.siteUrl || row.courseId !== course.id))) throw new Error('Esta asignatura ya corresponde a otro curso. Elige otra o crea una nueva.');
+      } else subjects.push({ id: subjectId, name: selection.subjectName ?? shortLmsTitle(course.name) });
+      const previous = existing.find(row => row.subjectId === subjectId);
+      if (previous && this.jobs.has(previous.id)) throw new Error('Espera a que termine la actualización del curso antes de reconectarlo.');
+      const salt = previous?.accountSalt ?? randomUUID(), fingerprint = credentialFingerprint(discovery.public.siteUrl, discovery.credential.userId, salt);
+      if (previous && previous.accountFingerprint !== fingerprint) throw new Error('Este curso está vinculado a otro usuario. No se pueden mezclar sus historiales.');
+      return { id: previous?.id ?? randomUUID(), subjectId, provider: 'moodle' as const, siteUrl: discovery.public.siteUrl, siteName: discovery.public.siteName, courseId: course.id, courseName: course.name, accountSalt: salt, accountFingerprint: fingerprint, enabled: true, autoMinutes: input.autoMinutes, createdAt: previous?.createdAt ?? new Date().toISOString(), lastSyncAt: previous?.lastSyncAt ?? null };
+    });
+    const before = connections.map(connection => ({ connectionId: connection.id, value: this.credentials.get(connection.id) }));
+    this.credentials.updateMany(connections.map(connection => ({ connectionId: connection.id, value: discovery.credential })));
+    try { this.store.saveMoodleSetup(subjects, connections); }
+    catch (error) {
+      try { this.credentials.updateMany(before); }
+      catch { throw new Error('No se guardaron las asignaturas. No se pudo restaurar el acceso anterior a Moodle; vuelve a conectar los cursos afectados.'); }
+      throw error;
+    }
+    this.discoveries.delete(input.discoveryId);
+    for (const connection of connections) this.lastAutomatic.set(connection.id, Date.now());
+    return connections.map(connection => ({ ...connection, hasCredentials: true }));
+  }
+  forgetDiscovery(id: string) { this.discoveries.delete(id); }
   async sync(connectionId: string, trigger: LmsSyncRun['trigger'] = 'manual'): Promise<LmsSyncRun> {
     const connection = this.store.requireLmsConnection(connectionId); if (this.jobs.has(connectionId)) throw new Error('Este curso ya se está sincronizando.');
     if (this.store.hasActiveMock()) throw new Error('La sincronización estará disponible al terminar el simulacro.');

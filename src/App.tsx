@@ -51,6 +51,7 @@ export default function App() {
   const [fatal, setFatal] = useState('');
   const [page, setPage] = useState<Page>('home');
   const [subjectId, setSubjectId] = useState('');
+  const [learningInterventionId,setLearningInterventionId]=useState<string>();
   const [practiceConceptId, setPracticeConceptId] = useState<string>();
   const[connectionProjectId,setConnectionProjectId]=useState<string>();
   const [newSubject, setNewSubject] = useState(false);
@@ -94,10 +95,10 @@ export default function App() {
     document.documentElement.classList.toggle('high-contrast', Boolean(data?.settings.highContrast));
   }, [data?.settings.largeText, data?.settings.highContrast]);
   const notify = (message: string, error = false) => setToast({ message, error });
-  const navigate = (next: Page, conceptId?: string) => { if(conceptId){const owner=data?.concepts.find(c=>c.id===conceptId)?.subjectId;if(owner)setSubjectId(owner);} setPracticeConceptId(next==='connections'?undefined:conceptId);setConnectionProjectId(next==='connections'?conceptId:undefined); setPage(next); document.querySelector('.main-content')?.scrollTo(0, 0); };
+  const navigate = (next: Page, conceptId?: string) => { if(conceptId){const owner=data?.concepts.find(c=>c.id===conceptId)?.subjectId??data?.interventions.find(i=>i.id===conceptId)?.subjectId;if(owner)setSubjectId(owner);} setLearningInterventionId(next==="pedagogy"?conceptId:undefined);setPracticeConceptId(next==="pedagogy"?undefined:next==='connections'?undefined:conceptId);setConnectionProjectId(next==='connections'?conceptId:undefined); setPage(next); document.querySelector('.main-content')?.scrollTo(0, 0); };
   if (!data) return <div className="boot-screen"><div className="brand-mark"><BookOpen size={29} /></div><h1>Tutor Local</h1>{fatal ? <p role="alert">{fatal}</p> : <Spinner label="Abriendo tu espacio…" />}</div>;
   const subject = data.subjects.find(s => s.id === (activeExam?.subjectId ?? subjectId));
-  const props: PageProps = { data, subject, refresh, notify, navigate, practiceConceptId,connectionProjectId, onNewSubject: () => setNewSubject(true), onEditSubject: setEditingSubject };
+  const props: PageProps = { data, subject, refresh, notify, navigate, practiceConceptId,connectionProjectId,learningInterventionId, onNewSubject: () => setNewSubject(true), onEditSubject: setEditingSubject };
   const pages = { home: Home, materials: Materials, moodle: Moodle, pedagogy: Pedagogy,connections:Connections, reports:Reports, goals:Goals, tutor: Tutor, practice: Practice, progress: Progress, settings: Preferences, plan: Plan, diagnostic: Diagnostic, curriculum: Curriculum, flashcards: Flashcards, portfolio: Portfolio, sessions: Sessions, mocks: Mocks, rubrics: Rubrics };
   const Content = pages[activeExam ? 'mocks' : page];
   return <div className="app-shell">
@@ -112,7 +113,7 @@ export default function App() {
       <div className="sidebar-bottom"><div className="local-note"><ShieldCheck size={20} /><div><strong>Tu aprendizaje es tuyo.</strong><span>Guardado en este ordenador.</span></div><Leaf className="local-leaf" size={60} /></div><button className={`nav-item ${page === 'settings' ? 'active' : ''}`} disabled={Boolean(activeExam)} onClick={() => navigate('settings')}><Settings size={19} /> Ajustes</button><div className="profile"><span className="avatar">{data.settings.name.slice(0, 1).toUpperCase() || 'T'}</span><div><strong>{data.settings.name || 'Mi perfil'}</strong><span>Cuenta local · sin registro</span></div><button className="icon-button" aria-label="Editar mi perfil" disabled={Boolean(activeExam)} onClick={() => navigate('settings')}><ArrowUpRight size={17} /></button></div></div>
     </aside>
     <div className="workspace"><header className="topbar"><div className="breadcrumbs">Mi espacio <span>/</span><span className="breadcrumb-current">{page === 'settings' ? 'Ajustes' : subject?.name ?? 'Inicio'}</span>{subject?.isDemo && page !== 'settings' && <span className="demo-chip">Ejemplo</span>}</div><div className="topbar-tools">{runningSession && <RunningSessionPill session={runningSession} onOpen={() => { setSubjectId(runningSession.subjectId); navigate('sessions'); }} />}<PrivacyChip /></div></header>
-      <main className={`main-content page-${page}`} id="main-content"><Content key={`${page}:${subjectId}`} {...props} /></main>
+      <main className={`main-content page-${page}`} id="main-content"><Content key={page === 'moodle' ? 'moodle' : `${page}:${subjectId}`} {...props} /></main>
     </div>
     {newSubject && <NewSubject onClose={() => setNewSubject(false)} onCreate={async input => {
       const created = await window.tutor.createSubject(input); await refresh(); setSubjectId(created.id); setNewSubject(false); navigate('home'); notify('Tu asignatura está lista. Añade los primeros materiales.');

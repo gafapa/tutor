@@ -1,0 +1,17 @@
+# Moodle comparison copies and structured reflection
+
+Version 0.18 lets the student save a comparison of two downloaded Moodle attempts with a structured personal reflection. The action is available inside the existing comparison detail for assignments and permitted finished quiz reviews. It works offline and does not send anything to Moodle.
+
+Three fields are required: what changed, what the student checked personally, and what they will practice next. Each field accepts at most 3,000 characters and rejects whitespace-only input. Drafts are kept separately for each selected pair while the same detail is open, including when temporarily selecting the same attempt or collapsing the comparison. Drafts become durable only after saving; closing the detail or switching local versions does not save them.
+
+The backend accepts only the item ID, local revision, two attempt identifiers and personal reflections. It retrieves both originals from the authoritative local version. It rejects missing versions, repeated or unavailable attempts, restricted/unfinished quiz reviews and additional caller-supplied source fields. It never trusts response text supplied by the renderer.
+
+The resulting personal portfolio work includes the activity and course, source URL, selected local revision and import time, that version's instructions, both selected attempts with dates and states, original text, matching comments and attachment references. Quiz sources identify each attempt and retain only previously permitted raw points. Cached reviews are labeled. Assignment grades are not reconstructed. Attachments are referenced by path, filename and byte count; their bytes are not duplicated into the portfolio.
+
+The complete source copy must fit the existing 50,000-character portfolio limit. Oversized comparisons are rejected before saving, without truncating source text or creating a partial entry. An identical copy with identical normalized reflections returns the existing entry; a changed reflection creates a new independent selection.
+
+Saving is explicit and manual. It creates no verified practice evidence, recalculates no mastery, completes no task and does not validate the student's reflection. A statement about a check performed personally is not an automatically verified result. The portfolio copy survives later Moodle synchronization, disconnection and removal of the local course copy. Existing portfolio deletion and encrypted portable backup behavior apply.
+
+Storage and portable backup schema remain 16. No migration or new table is required. Source items and local versions remain unchanged. The application invalidates the derived semantic index for this action, as it does for other portfolio additions.
+
+Unit tests cover authoritative source lookup, original/feedback preservation, source/reflection separation, deduplication, invalid inputs, unavailable quiz reviews, oversized copies, immutable earlier revisions and portable restoration. The real isolated Moodle workflow prepares two graded assignment attempts and two finished quiz attempts, removes credentials and stops the web server, then saves both kinds through the UI. It verifies draft retention, independent copies, duplicate suppression, unchanged source/tasks/practice records, removal of Moodle data, encrypted restore and restart. Run `npm run test:moodle:reflection` or `node scripts/smoke-moodle-reflection.mjs --packaged`.

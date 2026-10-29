@@ -67,7 +67,7 @@ test('bases y copias 0.6 conservan sus datos sin inventar análisis al migrar',a
   const previous=JSON.parse(store.exportData());previous.version=6;const newTables=['learning_analyses','observation_reviews','interventions','intervention_responses','intervention_reviews'];for(const table of newTables)delete previous.tables[table];
   store.importData(JSON.stringify(previous));assert.equal(store.snapshot().learningAnalyses.length,0);assert.equal(store.snapshot().attempts[0].id,attempt.id);store.close();
   const sql=await initSqlJs({locateFile:()=>wasm}),db=new sql.Database(decrypt(await readFile(path),key));for(const table of newTables)db.run(`DROP TABLE ${table}`);db.run('PRAGMA user_version = 6');writeEncrypted(path,db.export(),key);db.close();
-  const reopened=await Store.open(path,key,wasm);try{assert.equal(reopened.snapshot().subjects[0].id,subject.id);assert.equal(reopened.snapshot().attempts[0].id,attempt.id);assert.equal(reopened.snapshot().learningAnalyses.length,0);assert.equal(JSON.parse(reopened.exportData()).version, 12);}finally{reopened.close();}
+  const reopened=await Store.open(path,key,wasm);try{assert.equal(reopened.snapshot().subjects[0].id,subject.id);assert.equal(reopened.snapshot().attempts[0].id,attempt.id);assert.equal(reopened.snapshot().learningAnalyses.length,0);assert.equal(JSON.parse(reopened.exportData()).version, 18);}finally{reopened.close();}
 });
 
 test('analizar una copia en rúbrica conserva el origen y borrar la entrega limpia sus refuerzos',async()=>{

@@ -1,0 +1,12 @@
+REDES · DE LOS BITS A LAS SUBREDES
+Material sintético para las pruebas de Tutor Local.
+
+Cada bit admite dos valores. Cuatro bits permiten 2 elevado a 4 = 16 combinaciones.
+2 elevado a 5 = 32; 2 elevado a 6 = 64.
+1010 en binario representa 8 + 2 = 10 en decimal.
+13 en decimal se escribe 1101 en binario con cuatro bits.
+IPv4 tiene 32 bits. Una red /26 deja 6 bits: 64 direcciones totales.
+Una subred /27 convencional tiene 32 direcciones totales y 30 hosts utilizables.
+La reserva de red y broadcast no se aplica del mismo modo a /31 y /32.
+
+Distingue siempre entre direcciones totales y hosts utilizables.

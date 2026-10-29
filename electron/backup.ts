@@ -1,5 +1,6 @@
 import { randomBytes, scryptSync } from 'node:crypto';
 import { encrypt, decrypt } from './vault.js';
+import { assertBackupFileSize, assertBackupJsonSize } from './backup-limits.js';
 
 const HEADER = Buffer.from('TUTORBACKUP01');
 export function isEncryptedBackup(bytes: Buffer): boolean {
@@ -7,11 +8,13 @@ export function isEncryptedBackup(bytes: Buffer): boolean {
 }
 export function encodeBackup(json: string, password: string): Buffer {
   if (password.length < 8) throw new Error('La contraseña debe tener al menos 8 caracteres.');
+  assertBackupJsonSize(json);
   const salt = randomBytes(16);
   const key = scryptSync(password, salt, 32);
   return Buffer.concat([HEADER, salt, encrypt(Buffer.from(json), key)]);
 }
 export function decodeBackup(bytes: Buffer, password: string): string {
+  assertBackupFileSize(bytes.length);
   if (bytes.length < HEADER.length + 16 + 35 || !bytes.subarray(0, HEADER.length).equals(HEADER)) throw new Error('La copia cifrada no tiene un formato válido.');
   const salt = bytes.subarray(HEADER.length, HEADER.length + 16);
   try {

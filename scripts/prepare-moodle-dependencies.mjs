@@ -11,9 +11,9 @@ const root = resolve('.tools/moodle-test'), sevenZip = require('7zip-bin').path7
 const revision = '1990fc9201b23e0b0c8fdc44d537840a85d73503';
 await mkdir(root, { recursive: true });
 
-// Solo se cachean archivos públicos; configuración, contraseñas y bases de datos quedan fuera.
+// Cache public archives only; never cache configuration, credentials or databases.
 for (const item of [
-  { name: 'php.zip', directory: 'php', url: 'https://windows.php.net/downloads/releases/php-8.3.35-nts-Win32-vs16-x64.zip', sha256: '25a8e2ac9ff30f1d768d1447c09a600617fa6e6082729f6e95f008b59c91fe45' },
+  { name: 'php.zip', directory: 'php', url: 'https://downloads.php.net/~windows/releases/archives/php-8.3.35-nts-Win32-vs16-x64.zip', sha256: '25a8e2ac9ff30f1d768d1447c09a600617fa6e6082729f6e95f008b59c91fe45' },
   { name: 'mariadb.zip', directory: 'mariadb', url: 'https://archive.mariadb.org/mariadb-11.4.13/winx64-packages/mariadb-11.4.13-winx64.zip', sha256: 'd62986d433eeebfde218560b276103831604a61e929e87f1a17f5aebd80257e2' },
 ]) {
   const archive = join(root, item.name); let bytes;

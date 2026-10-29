@@ -9,7 +9,7 @@ const pkg = JSON.parse(await readFile('package.json', 'utf8')), verification = J
 const installerBytes = await readFile(verification.installer.path); assert.equal(createHash('sha256').update(installerBytes).digest('hex'), verification.installer.sha256);
 const root = resolve('.tools/installer-test', randomUUID()), target = join(root, 'app'), dataDirectory = join(root, 'profile'); await mkdir(root, { recursive: true });
 const run = action => new Promise((resolveResult, reject) => {
-  const child = spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', resolve('scripts/installer-test.ps1'), '-Action', action, '-Target', target, '-DataDirectory', dataDirectory], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', resolve('scripts/installer-test.ps1'), '-Action', action, '-Target', target, '-DataDirectory', dataDirectory], { windowsHide: true, env: Object.fromEntries(Object.entries(process.env).filter(([name]) => name.toLowerCase() !== 'psmodulepath')), stdio: ['ignore', 'pipe', 'pipe'] });
   const out = [], err = []; child.stdout.on('data', bytes => out.push(bytes)); child.stderr.on('data', bytes => err.push(bytes)); child.once('error', reject);
   child.once('exit', code => { if (code) reject(new Error(Buffer.concat(err).toString('utf8').slice(0, 1200) || 'La instalación de prueba no terminó.')); else resolveResult(JSON.parse(Buffer.concat(out).toString('utf8').trim())); });
 });

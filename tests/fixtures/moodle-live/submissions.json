@@ -1,0 +1,408 @@
+{
+  "syntheticDataOnly": true,
+  "username": "alumno",
+  "courses": [
+    {
+      "shortname": "TUTOR-LOCAL-MATH-TEST",
+      "subject": "Matemáticas",
+      "submissions": [
+        {
+          "name": "T1 · Práctica de procedimientos",
+          "response": "DATOS SINTÉTICOS PARA PRUEBAS DE TUTOR LOCAL.\n\n1. Divido 42 y 56 entre 14: 3/4.\n2. 5/8 = 0,625; 2/3 ≈ 0,667; 3/4 = 0,75; por tanto 5/8 < 2/3 < 3/4.\n3. El mcm de 12 y 18 es 36: 21/36 + 10/36 = 31/36.\n4. Primero 3/4 − 1/6 = 7/12. Después multiplico por 3/7: queda 1/4. Compruebo que la división entre un número mayor que uno reduce el resultado.",
+          "evaluation": {
+            "grade": 10,
+            "maxGrade": 10,
+            "criteria": {
+              "accuracy": 4,
+              "reasoning": 3,
+              "checking": 2,
+              "clarity": 1
+            },
+            "feedback": "Evaluación sintética para pruebas. Procedimientos y comprobaciones correctos. Conservas las fracciones exactas y explicas el denominador común."
+          }
+        },
+        {
+          "name": "T1 · Detecta y explica errores",
+          "response": "DATOS SINTÉTICOS PARA PRUEBAS DE TUTOR LOCAL.\n\n1. No se suman denominadores: 1/2 + 1/3 = 3/6 + 2/6 = 5/6.\n2. Dividir entre 2/5 equivale a multiplicar por 0,4 y reduce el número.\n3. 3/8 = 0,375 es exacto; 2/3 = 0,666… es periódico. Redondearía solo al terminar un cálculo aproximado.\n4. Ambas fracciones se simplifican a 3/5. También 21·15 = 35·9 = 315.",
+          "evaluation": {
+            "grade": 6.5,
+            "maxGrade": 10,
+            "criteria": {
+              "accuracy": 2.5,
+              "reasoning": 2,
+              "checking": 1,
+              "clarity": 1
+            },
+            "feedback": "Evaluación sintética para pruebas. Corrige la segunda respuesta: dividir entre 2/5 equivale a multiplicar por 5/2, no por 0,4. Prueba con 1 ÷ (2/5) = 2,5 para comprobar el sentido del cambio."
+          }
+        },
+        {
+          "name": "T1 · Aplicación y transferencia",
+          "response": "DATOS SINTÉTICOS PARA PRUEBAS DE TUTOR LOCAL.\n\n1. 3/2 · 2/3 = 1 L.\n2. Falta 1 − 2/5 − 1/3 = 4/15.\n3. Multiplico por 6/4: 3/8 · 6/4 = 9/16 kg de arroz.\n4. Tengo 3/4 L y vasos de 1/8 L: 3/4 ÷ 1/8 = 6 vasos. El resultado cuenta vasos, no litros.",
+          "evaluation": {
+            "grade": 9.5,
+            "maxGrade": 10,
+            "criteria": {
+              "accuracy": 4,
+              "reasoning": 3,
+              "checking": 1.5,
+              "clarity": 1
+            },
+            "feedback": "Evaluación sintética para pruebas. Las cuatro aplicaciones están bien resueltas y las unidades son coherentes. Añade una comprobación independiente del arroz, por ejemplo comparándolo con los 3/8 kg iniciales."
+          }
+        },
+        {
+          "name": "T2 · Práctica de procedimientos",
+          "response": "DATOS SINTÉTICOS PARA PRUEBAS DE TUTOR LOCAL.\n\n1. Cada cuaderno cuesta 12/5 = 2,40 euros; ocho cuestan 19,20 euros.\n2. 250 · 0,18 = 45.\n3. La base es 96,80/1,21 = 80 euros; compruebo 80 · 1,21 = 96,80.\n4. El trabajo requiere 60 jornadas-persona. Con cuatro operarios: 60/4 = 15 días, suponiendo igual rendimiento y una tarea divisible.",
+          "evaluation": {
+            "grade": 10,
+            "maxGrade": 10,
+            "criteria": {
+              "accuracy": 4,
+              "reasoning": 3,
+              "checking": 2,
+              "clarity": 1
+            },
+            "feedback": "Evaluación sintética para pruebas. Correcto. Distingues los modelos directo e inverso y explicitas las hipótesis del trabajo."
+          }
+        },
+        {
+          "name": "T2 · Detecta y explica errores",
+          "response": "DATOS SINTÉTICOS PARA PRUEBAS DE TUTOR LOCAL.\n\n1. La tarifa no es proporcional: a cero horas cuesta 10 euros y el cociente coste/horas no es constante.\n2. Subir y bajar un 10 % deja el precio igual porque +10 − 10 = 0.\n3. Del 20 % al 25 % hay cinco puntos porcentuales y un aumento relativo del 25 %.\n4. Dos descuentos del 10 % equivalen a uno del 20 %.",
+          "evaluation": {
+            "grade": 4.5,
+            "maxGrade": 10,
+            "criteria": {
+              "accuracy": 2,
+              "reasoning": 1,
+              "checking": 0.5,
+              "clarity": 1
+            },
+            "feedback": "Evaluación sintética para pruebas. Los cambios sucesivos usan bases diferentes. En la segunda respuesta, 1,10·0,90 = 0,99: baja un 1 %. En la cuarta, 0,90·0,90 = 0,81: el descuento conjunto es del 19 %. Haz ambas comprobaciones con 100 euros."
+          }
+        },
+        {
+          "name": "T2 · Aplicación y transferencia",
+          "response": "DATOS SINTÉTICOS PARA PRUEBAS DE TUTOR LOCAL.\n\n1. Sobre 100 euros, un 30 % de descuento deja 70 euros; descuentos del 20 % y 10 % dejan 72. Conviene el primero.\n2. Para ocho personas: 450·8/3 = 1200 g.\n3. La subida es 8/64 = 0,125: 12,5 %.\n4. Si cada artículo cuesta 10 euros, un 3×2 cuesta 20 por tres; un 20 % de descuento cuesta 24 por tres. Para uno solo, el descuento cuesta 8 y el 3×2 no aporta ahorro.",
+          "evaluation": {
+            "grade": 9.0,
+            "maxGrade": 10,
+            "criteria": {
+              "accuracy": 4,
+              "reasoning": 2.5,
+              "checking": 1.5,
+              "clarity": 1
+            },
+            "feedback": "Evaluación sintética para pruebas. Comparaciones y resultados correctos. La oferta se interpreta según la cantidad comprada; añade las condiciones de productos iguales y ausencia de otros costes."
+          }
+        },
+        {
+          "name": "T3 · Práctica de procedimientos",
+          "response": "DATOS SINTÉTICOS PARA PRUEBAS DE TUTOR LOCAL.\n\n1. Para x = −2: 2·4 − 3·(−2) + 1 = 15.\n2. 4a − 3 + 2a + 7 = 6a + 4.\n3. 5x − 7 = 3x + 9 implica 2x = 16; x = 8. Compruebo 40 − 7 = 24 + 9 = 33.\n4. Multiplico por seis: 2(x − 1) + 3x = 18; 5x = 20; x = 4. Al sustituir: 1 + 2 = 3.",
+          "evaluation": {
+            "grade": 10,
+            "maxGrade": 10,
+            "criteria": {
+              "accuracy": 4,
+              "reasoning": 3,
+              "checking": 2,
+              "clarity": 1
+            },
+            "feedback": "Evaluación sintética para pruebas. Resolución correcta, incluida la sustitución en las ecuaciones originales."
+          }
+        },
+        {
+          "name": "T3 · Detecta y explica errores",
+          "response": "DATOS SINTÉTICOS PARA PRUEBAS DE TUTOR LOCAL.\n\n1. Hay que distribuir el dos a ambos términos: 2x − 6.\n2. Al restar 4x queda 2 = 5; no existe solución.\n3. 3(x + 2) = 3x + 6 es cierta para cualquier x real.\n4. Para x = 3, 2x² = 18 y (2x)² = 18; son iguales.",
+          "evaluation": {
+            "grade": 6.5,
+            "maxGrade": 10,
+            "criteria": {
+              "accuracy": 2.5,
+              "reasoning": 2,
+              "checking": 1,
+              "clarity": 1
+            },
+            "feedback": "Evaluación sintética para pruebas. Revisa la cuarta respuesta: (2·3)² = 6² = 36. El cuadrado afecta a todo el producto entre paréntesis. Las tres primeras explicaciones son correctas."
+          }
+        },
+        {
+          "name": "T3 · Aplicación y transferencia",
+          "response": "DATOS SINTÉTICOS PARA PRUEBAS DE TUTOR LOCAL.\n\n1. 4 + 1,5d = 19: d = 10 km.\n2. Si el ancho es a y el largo a + 5, 2a + 2(a + 5) = 34; a = 6 cm y largo 11 cm. Compruebo 2·6 + 2·11 = 34.\n3. 8 + 2h = 20 + h da h = 12. Antes conviene el primer plan; después, el segundo.\n4. Propongo 2x + 3 = 17: x = 7; al sustituir obtengo 17.",
+          "evaluation": {
+            "grade": 9.5,
+            "maxGrade": 10,
+            "criteria": {
+              "accuracy": 4,
+              "reasoning": 3,
+              "checking": 1.5,
+              "clarity": 1
+            },
+            "feedback": "Evaluación sintética para pruebas. Modelos y unidades adecuados. Refuerza la comparación de tarifas comprobando un valor a cada lado de las doce horas."
+          }
+        },
+        {
+          "name": "T4 · Práctica de procedimientos",
+          "response": "DATOS SINTÉTICOS PARA PRUEBAS DE TUTOR LOCAL.\n\n1. Suma 30, media 6, mediana 5, moda 5 y rango 10 − 4 = 6.\n2. A: tres, 1/2; B: dos, 1/3; C: uno, 1/6. Las relativas suman uno.\n3. En un dado equilibrado, los favorables son 3 y 6: 2/6 = 1/3.\n4. P(roja) = 3/5 y P(no roja) = 2/5; suman uno.",
+          "evaluation": {
+            "grade": 10,
+            "maxGrade": 10,
+            "criteria": {
+              "accuracy": 4,
+              "reasoning": 3,
+              "checking": 2,
+              "clarity": 1
+            },
+            "feedback": "Evaluación sintética para pruebas. Cálculos correctos y comprobación coherente de frecuencias y complementarios."
+          }
+        },
+        {
+          "name": "T4 · Detecta y explica errores",
+          "response": "DATOS SINTÉTICOS PARA PRUEBAS DE TUTOR LOCAL.\n\n1. Preguntar solo a amistades sesga la selección y no permite generalizar al centro.\n2. La mediana no siempre figura en los datos: para 1 y 2 es 1,5.\n3. Un eje que comienza en 90 puede hacer que 100 y 110 parezcan mucho más diferentes; hay que mostrar la escala.\n4. Más calor puede aumentar tanto las ventas de helado como los baños: la correlación no demuestra que uno cause el otro.",
+          "evaluation": {
+            "grade": 9.0,
+            "maxGrade": 10,
+            "criteria": {
+              "accuracy": 4,
+              "reasoning": 2.5,
+              "checking": 1.5,
+              "clarity": 1
+            },
+            "feedback": "Evaluación sintética para pruebas. Las cuatro críticas son válidas. En el gráfico, concreta la comparación con un eje que parta de cero y explica qué conclusión cambia."
+          }
+        },
+        {
+          "name": "T4 · Aplicación y transferencia",
+          "response": "DATOS SINTÉTICOS PARA PRUEBAS DE TUTOR LOCAL.\n\n1. Diez trayectos ficticios, sin nombres: 10, 12, 12, 14, 15, 16, 18, 20, 22 y 25 minutos. La media es 16,4 y la mediana 15,5.\n2. Dos rojas sin reposición: 3/5·2/4 = 3/10.\n3. A = 4, 5, 6 y B = 0, 5, 10 tienen media 5, pero rangos 2 y 10.\n4. En estos datos inventados la mitad de trayectos no supera 15,5 minutos. No representan tiempos de un centro real.",
+          "evaluation": {
+            "grade": 9.5,
+            "maxGrade": 10,
+            "criteria": {
+              "accuracy": 4,
+              "reasoning": 3,
+              "checking": 1.5,
+              "clarity": 1
+            },
+            "feedback": "Evaluación sintética para pruebas. Respuestas consistentes y límites explícitos. Señala además que el tamaño de muestra es pequeño y acompaña el contraste de grupos de una representación sencilla."
+          }
+        },
+        {
+          "name": "Proyecto final · Integra y revisa",
+          "response": "DATOS SINTÉTICOS PARA PRUEBAS DE TUTOR LOCAL.\n\nPresupuesto ficticio para 24 personas: transporte 180 euros; menú rebajado 12·0,90 = 10,80 euros por persona. El coste conocido es 180 + 24·10,80 = 439,20. Si x es el precio de la actividad por persona, 439,20 + 24x = 720; x máximo = 11,70 euros. Compruebo que 439,20 + 280,80 = 720.\nCon 20 participantes y la misma actividad de 11,70, el coste es 180 + 216 + 234 = 630 euros. Si se agotase el presupuesto de 720, la actividad podría costar 16,20 por persona.\nTiempos ficticios: 10, 12, 12, 14 y 42 minutos. Media 18, mediana 12. El valor de 42 eleva la media; la tabla inventada no permite inferir hábitos reales. No he previsto seguros ni imprevistos, por lo que el presupuesto necesita margen antes de aplicarse.",
+          "evaluation": {
+            "grade": 10,
+            "maxGrade": 10,
+            "criteria": {
+              "accuracy": 4,
+              "reasoning": 3,
+              "checking": 2,
+              "clarity": 1
+            },
+            "feedback": "Evaluación sintética para pruebas. Proyecto completo: ecuación bien definida, comparación de participantes, comprobación del presupuesto y análisis del valor extremo. Se explicitan los costes no incluidos."
+          }
+        }
+      ]
+    },
+    {
+      "shortname": "TUTOR-LOCAL-NET-TEST",
+      "subject": "Redes",
+      "submissions": [
+        {
+          "name": "T1 · Práctica de procedimientos",
+          "response": "DATOS SINTÉTICOS PARA PRUEBAS DE TUTOR LOCAL.\n\n1. 10110110 = 128 + 32 + 16 + 4 + 2 = 182.\n2. 13 = 00001101 y 200 = 11001000.\n3. Seis bits permiten 2⁶ = 64 patrones.\n4. 11001010 AND 11110000 = 11001000, que es 200.",
+          "evaluation": {
+            "grade": 7.0,
+            "maxGrade": 10,
+            "criteria": {
+              "accuracy": 2.5,
+              "reasoning": 2.5,
+              "checking": 1,
+              "clarity": 1
+            },
+            "feedback": "Evaluación sintética para pruebas. Las conversiones y el recuento son correctos. En AND, un bit queda a uno solo si ambos lo tienen a uno: el resultado correcto es 11000000, decimal 192. Revisa la quinta posición."
+          }
+        },
+        {
+          "name": "T1 · Detecta y explica errores",
+          "response": "DATOS SINTÉTICOS PARA PRUEBAS DE TUTOR LOCAL.\n\n1. Un octeto sin signo tiene 256 patrones, desde 0 hasta 255.\n2. Un byte contiene ocho bits: 100 Mb/s equivale idealmente a 12,5 MB/s.\n3. 1 MB son 1.000.000 bytes; 1 MiB son 1.048.576.\n4. 10000001 es 128 + 1 = 129; escribir 129 + 1 cuenta dos veces el último bit.",
+          "evaluation": {
+            "grade": 10,
+            "maxGrade": 10,
+            "criteria": {
+              "accuracy": 4,
+              "reasoning": 3,
+              "checking": 2,
+              "clarity": 1
+            },
+            "feedback": "Evaluación sintética para pruebas. Distingues correctamente patrones, valores, unidades decimales y binarias; la conversión de velocidad también es coherente."
+          }
+        },
+        {
+          "name": "T1 · Aplicación y transferencia",
+          "response": "DATOS SINTÉTICOS PARA PRUEBAS DE TUTOR LOCAL.\n\n1. 75 MB son 600 Mb; a 50 Mb/s se tardan idealmente 12 s.\n2. En 30 s a 80 Mb/s pasan idealmente 2400 Mb, es decir 300 MB.\n3. Cabeceras y retransmisiones aumentan el tiempo real; también puede limitar el servidor.\n4. Potencias de 2⁰ a 2¹⁰: 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024. Sirven para contar combinaciones y tamaños de bloques.",
+          "evaluation": {
+            "grade": 9.0,
+            "maxGrade": 10,
+            "criteria": {
+              "accuracy": 4,
+              "reasoning": 2.5,
+              "checking": 1.5,
+              "clarity": 1
+            },
+            "feedback": "Evaluación sintética para pruebas. Resultados correctos. Explica también que el ancho de banda disponible puede compartirse y que la estimación no garantiza un tiempo de descarga real."
+          }
+        },
+        {
+          "name": "T2 · Práctica de procedimientos",
+          "response": "DATOS SINTÉTICOS PARA PRUEBAS DE TUTOR LOCAL.\n\n1. El switch reenvía tramas usando MAC dentro de Ethernet; el router encamina paquetes IP entre redes.\n2. 10.2.3.4, 172.20.1.1 y 192.168.4.5 pertenecen a rangos privados RFC 1918.\n3. En 192.168.300.5 el tercer octeto excede 255.\n4. DHCP entrega configuración; DNS resuelve nombres; ARP obtiene la MAC correspondiente a una IPv4 local.",
+          "evaluation": {
+            "grade": 9.5,
+            "maxGrade": 10,
+            "criteria": {
+              "accuracy": 4,
+              "reasoning": 3,
+              "checking": 1.5,
+              "clarity": 1
+            },
+            "feedback": "Evaluación sintética para pruebas. Distinciones correctas. Añade en el primer caso un ejemplo de destino local y otro remoto para completar la comparación pedida."
+          }
+        },
+        {
+          "name": "T2 · Detecta y explica errores",
+          "response": "DATOS SINTÉTICOS PARA PRUEBAS DE TUTOR LOCAL.\n\n1. Todo el bloque 172.0.0.0/8 es privado.\n2. Una IP privada no garantiza seguridad: puede haber servicios expuestos y ataques locales.\n3. DNS no entrega la IP del portátil: normalmente lo hace DHCP.\n4. Que responda ping no demuestra que el puerto web ni la aplicación funcionen.",
+          "evaluation": {
+            "grade": 6.5,
+            "maxGrade": 10,
+            "criteria": {
+              "accuracy": 2.5,
+              "reasoning": 2,
+              "checking": 1,
+              "clarity": 1
+            },
+            "feedback": "Evaluación sintética para pruebas. La primera afirmación es incorrecta: el rango privado es 172.16.0.0/12, con segundo octeto de 16 a 31. No todo 172/8 es privado. Las otras tres respuestas distinguen adecuadamente las funciones y el alcance de una prueba."
+          }
+        },
+        {
+          "name": "T2 · Aplicación y transferencia",
+          "response": "DATOS SINTÉTICOS PARA PRUEBAS DE TUTOR LOCAL.\n\n1. Esquema ficticio: PC A y PC B → switch → router → otra red. El switch conecta la LAN y el router alcanza prefijos remotos.\n2. Si funciona la IP y falla el nombre, revisaría el DNS configurado y la respuesta al nombre exacto; no cambiaría el cable sin más evidencia.\n3. PC: 10.0.0.10/24; puerta de enlace 10.0.0.1; DNS 10.0.0.53. Todo es ficticio.\n4. Necesito las direcciones y sus prefijos o máscaras; calculo las redes y las comparo.",
+          "evaluation": {
+            "grade": 9.0,
+            "maxGrade": 10,
+            "criteria": {
+              "accuracy": 4,
+              "reasoning": 2.5,
+              "checking": 1.5,
+              "clarity": 1
+            },
+            "feedback": "Evaluación sintética para pruebas. Plan coherente. Completa la tabla con una segunda configuración y escribe la red resultante, 10.0.0.0/24, para que la comprobación quede documentada."
+          }
+        },
+        {
+          "name": "T3 · Práctica de procedimientos",
+          "response": "DATOS SINTÉTICOS PARA PRUEBAS DE TUTOR LOCAL.\n\n1. /27 equivale a 255.255.255.224: 32 direcciones y 30 hosts en una LAN convencional.\n2. 192.168.8.142/28: red .128, broadcast .143 y hosts .129–.142.\n3. Las /26 de 192.168.5.0/24 comienzan en .0, .64, .128 y .192.\n4. .62/26 pertenece al bloque .0; .65/26 al .64. No comparten subred.",
+          "evaluation": {
+            "grade": 9.5,
+            "maxGrade": 10,
+            "criteria": {
+              "accuracy": 4,
+              "reasoning": 3,
+              "checking": 1.5,
+              "clarity": 1
+            },
+            "feedback": "Evaluación sintética para pruebas. Cálculos correctos. Añade el broadcast y rango de cada bloque del tercer apartado para documentar completamente la partición."
+          }
+        },
+        {
+          "name": "T3 · Detecta y explica errores",
+          "response": "DATOS SINTÉTICOS PARA PRUEBAS DE TUTOR LOCAL.\n\n1. Una /26 ofrece 64 hosts utilizables.\n2. .64/26 es la dirección de red del bloque y no se asigna a un PC en esta LAN convencional.\n3. 255.255.255.160 termina en 10100000: sus unos no son contiguos, así que no es una máscara CIDR válida.\n4. Treinta PCs y un router necesitan 31 hosts; /27 tiene 30 y no basta.",
+          "evaluation": {
+            "grade": 6.5,
+            "maxGrade": 10,
+            "criteria": {
+              "accuracy": 2.5,
+              "reasoning": 2,
+              "checking": 1,
+              "clarity": 1
+            },
+            "feedback": "Evaluación sintética para pruebas. En el primer apartado confundes direcciones totales con hosts: /26 tiene 64 direcciones y 62 hosts convencionales. Usa la misma distinción que aplicas correctamente al dimensionar la /27."
+          }
+        },
+        {
+          "name": "T3 · Aplicación y transferencia",
+          "response": "DATOS SINTÉTICOS PARA PRUEBAS DE TUTOR LOCAL.\n\n1. Cincuenta PCs, un router y cinco impresoras suman 56 hosts. Elijo /26 porque permite 62; /27 solo permite 30.\n2. Para 192.168.8.142/28 una puerta de enlace válida es 192.168.8.129: está en el rango .129–.142 y debe estar libre.\n3. Ocho subredes iguales de una /24 son /27, con 30 hosts cada una y comienzos .0, .32, .64, .96, .128, .160, .192 y .224.\n4. 192.168.2.0/25 cubre .0–.127 y .64/26 cubre .64–.127; se solapan.",
+          "evaluation": {
+            "grade": 10,
+            "maxGrade": 10,
+            "criteria": {
+              "accuracy": 4,
+              "reasoning": 3,
+              "checking": 2,
+              "clarity": 1
+            },
+            "feedback": "Evaluación sintética para pruebas. Dimensionamiento, alineación y solapamiento bien justificados. La puerta de enlace se propone bajo la condición explícita de que esté disponible y configurada en el router."
+          }
+        },
+        {
+          "name": "T4 · Práctica de procedimientos",
+          "response": "DATOS SINTÉTICOS PARA PRUEBAS DE TUTOR LOCAL.\n\n1. Comprobaría enlace, configuración IP/prefijo, acceso a la puerta de enlace y resolución DNS.\n2. 192.168.4.70/26 pertenece a .64/26; .1 no es una puerta de enlace local apropiada.\n3. Dos equipos con 192.168.3.10/24 tienen un conflicto de IP si coinciden en la misma red.\n4. Hipótesis DNS: en el escenario ficticio la IP responde y el nombre no; comprobaría el servidor DNS y su respuesta, esperando distinguir nombre inexistente de servidor inaccesible.",
+          "evaluation": {
+            "grade": 9.0,
+            "maxGrade": 10,
+            "criteria": {
+              "accuracy": 4,
+              "reasoning": 2.5,
+              "checking": 1.5,
+              "clarity": 1
+            },
+            "feedback": "Evaluación sintética para pruebas. Orden y diagnósticos adecuados. En el último caso identifica una consulta concreta y el resultado que descartaría tu hipótesis; una IP que responde no verifica toda la aplicación."
+          }
+        },
+        {
+          "name": "T4 · Detecta y explica errores",
+          "response": "DATOS SINTÉTICOS PARA PRUEBAS DE TUTOR LOCAL.\n\n1. Cambiar varios parámetros a la vez impide saber cuál causaba el fallo y complica volver al estado inicial.\n2. Si ping falla, el servidor está apagado.\n3. Separar direcciones en dos subredes sobre el papel no configura VLAN ni cortafuegos.\n4. Observación: el navegador agota el tiempo. Hipótesis: el DNS está mal configurado. Necesito una prueba para distinguirla de otras causas.",
+          "evaluation": {
+            "grade": 6.5,
+            "maxGrade": 10,
+            "criteria": {
+              "accuracy": 2.5,
+              "reasoning": 2,
+              "checking": 1,
+              "clarity": 1
+            },
+            "feedback": "Evaluación sintética para pruebas. Corrige la segunda respuesta: ICMP puede estar filtrado aunque el servidor y un servicio funcionen. Las otras respuestas distinguen cambios, configuración efectiva e hipótesis."
+          }
+        },
+        {
+          "name": "T4 · Aplicación y transferencia",
+          "response": "DATOS SINTÉTICOS PARA PRUEBAS DE TUTOR LOCAL.\n\n1. Tres aulas: 192.168.20.0/26, .64/26 y .128/26. Cada una permite 62 hosts, suficientes para 40 PCs y el router. Puertas de enlace .1, .65 y .129.\n2. Reservo .192/26; red .192 y broadcast .255.\n3. Incidencia ficticia: dos PCs comparten IP. Revisaría sus configuraciones y el plan antes de asignar una dirección libre. Cierro cuando cada equipo tiene una IP única y las pruebas previstas funcionan.\n4. Revisaría prefijos, capacidad, red/broadcast, puerta de enlace local y ausencia de solapamientos.",
+          "evaluation": {
+            "grade": 9.0,
+            "maxGrade": 10,
+            "criteria": {
+              "accuracy": 4,
+              "reasoning": 2.5,
+              "checking": 1.5,
+              "clarity": 1
+            },
+            "feedback": "Evaluación sintética para pruebas. El plan y la reserva son correctos. La incidencia necesita una segunda hipótesis y pruebas para descartarla; incorpora también los rangos de hosts en la documentación final."
+          }
+        },
+        {
+          "name": "Proyecto final · Integra y revisa",
+          "response": "DATOS SINTÉTICOS PARA PRUEBAS DE TUTOR LOCAL.\n\nProyecto de red ficticia: divido 192.168.50.0/24 en cuatro /26 con máscara 255.255.255.192. Aula A: red .0, broadcast .63, hosts .1–.62, router .1, PCs .10 y .11. Aula B: red .64, broadcast .127, hosts .65–.126, router .65, PCs .70 y .71. Aula C: red .128, broadcast .191, hosts .129–.190, router .129, PCs .140 y .141. Reservo .192/26, con broadcast .255 y hosts .193–.254. Cada aula requiere 41 hosts y dispone de 62.\nCada aula conecta sus PCs a un switch; el router conecta las subredes. La separación requiere configuración efectiva, por ejemplo VLAN y reglas; el direccionamiento no crea aislamiento por sí solo.\nIncidencia 1: dos equipos con .10; comparo su configuración con el inventario, corrijo el duplicado y verifico unicidad. Incidencia 2: PC .70/26 con router .1; calculo su red y uso el router del plan, .65. Incidencia 3: IP de destino accesible pero nombre fallido; compruebo DNS y consulto el nombre correcto. No ejecuto pruebas en redes reales. Falta concretar los servidores DNS y las reglas de acceso entre aulas.",
+          "evaluation": {
+            "grade": 9.5,
+            "maxGrade": 10,
+            "criteria": {
+              "accuracy": 4,
+              "reasoning": 3,
+              "checking": 1.5,
+              "clarity": 1
+            },
+            "feedback": "Evaluación sintética para pruebas. Proyecto consistente en capacidad y límites de los bloques, con incidencias diferenciadas. Para completarlo, documenta el servicio DNS y una matriz de acceso que permita verificar las reglas de aislamiento."
+          }
+        }
+      ]
+    }
+  ]
+}

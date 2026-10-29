@@ -1,17 +1,19 @@
 import { app, BrowserWindow, dialog, ipcMain, safeStorage, session, powerMonitor, shell, type IpcMainInvokeEvent } from 'electron';
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { readFile, writeFile, stat } from 'node:fs/promises';
-import { basename, join, resolve } from 'node:path';
+import { writeFile } from 'node:fs/promises';
+import { basename, dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { z } from 'zod';
 import { Store } from './store.js';
 import { LocalModel } from './model.js';
-import { extractMaterialLocal } from './import-service.js';
+import { extractMaterialLocal, extractMaterialBufferLocal } from './import-service.js';
 import { MATERIAL_EXTENSIONS } from '../shared/materials.js';
 import { retrieve } from './retrieval.js';
 import { tutorPrompt } from './prompt.js';
 import { encodeBackup, decodeBackup, isEncryptedBackup } from './backup.js';
+import { MAX_BACKUP_FILE_BYTES } from './backup-limits.js';
+import { readLocalFile } from './local-file.js';
 import { id, subjectInput, conceptInput, attemptInput, settingsInput, selfRatings, taskInput } from './validation.js';
 import type { ImportReport, ImportProgress } from '../shared/types.js';
 import { curriculumInput, unitInput, cardInput, portfolioInput } from './education-validation.js';
@@ -32,11 +34,25 @@ import { SemanticSearch } from './semantic-search.js';
 import { SemanticIndex } from './semantic-index.js';
 import { openSemanticClient } from './semantic-client.js';
 import { searchInput } from './semantic-corpus.js';
+import { unlockPortable } from './portable-window.js';
 
 app.setName('Tutor Local');
 app.commandLine.appendSwitch('disable-background-networking');
 app.commandLine.appendSwitch('disable-component-update');
-if (process.env.TUTOR_DATA_DIR) app.setPath('userData', resolve(process.env.TUTOR_DATA_DIR));
+const portable = app.isPackaged && existsSync(join(dirname(process.execPath), 'tutor-portable.json'));
+let startupError: unknown;
+if (portable) {
+  try {
+    const directory = join(dirname(process.execPath), 'Data');
+    mkdirSync(directory, { recursive: true });
+    app.setPath('userData', directory);
+    for (const [name, child] of [['sessionData', 'session'], ['temp', 'temp'], ['crashDumps', 'crashes']] as const) {
+      const path = join(directory, child); mkdirSync(path, { recursive: true }); app.setPath(name, path);
+    }
+    const logs = join(directory, 'logs'); mkdirSync(logs, { recursive: true }); app.setAppLogsPath(logs);
+  } catch (error) { startupError = error; }
+}
+else if (process.env.TUTOR_DATA_DIR) app.setPath('userData', resolve(process.env.TUTOR_DATA_DIR));
 else if (!app.isPackaged) app.setPath('userData', join(app.getPath('appData'), 'Tutor Local Desarrollo'));
 const developmentURL = !app.isPackaged && process.env.TUTOR_DEV_URL === 'http://127.0.0.1:5173' ? process.env.TUTOR_DEV_URL : undefined;
 const appFile = join(__dirname, '../../dist/index.html');
@@ -62,7 +78,7 @@ function handle(name: string, callback: (value: unknown) => unknown) {
     const url = event.senderFrame?.url;
     if (event.sender.id !== mainWindow.webContents.id || (url !== pathToFileURL(appFile).href && url !== `${developmentURL}/`)) throw new Error('Origen no autorizado.');
     if (store?.hasActiveMock() && !['snapshot', 'mockExam', 'saveMockAnswer', 'selectMockQuestion', 'finishMockExam', 'cancelMockExam', 'modelStatus', 'cancelChat', 'cancelDownload'].includes(name)) throw new Error('Las ayudas y los cambios de datos estarán disponibles al terminar el simulacro.');
-    if (/^(delete|erase|clearMoodleData|importData)/.test(name) || ['addNote', 'importMaterials', 'savePortfolio', 'saveRubric', 'commitOcrDraft', 'reviewCapture', 'updateSubject', 'startMockExam'].includes(name)) semantic?.invalidate();
+    if (/^(delete|erase|clearMoodleData|importData)/.test(name) || ['addNote', 'importMaterials', 'savePortfolio', 'copyMoodleSubmission', 'copyMoodleQuizReview', 'copyMoodleComparison', 'saveRubric', 'commitOcrDraft', 'reviewCapture', 'updateSubject', 'startMockExam'].includes(name)) semantic?.invalidate();
     return callback(value);
   });
 }
@@ -125,6 +141,10 @@ function registerHandlers() {
   handle('addProjectWork',value=>store.addProjectWork(value));
   handle('reviewProjectActivity',value=>store.reviewProjectActivity(value));
   handle('analyzeSteps', value => store.analyzeSteps(workInput.parse(value)));
+  handle('prepareMoodlePractice', value => { ensureIdle(); semantic?.invalidate(); return store.prepareMoodlePractice(value); });
+  handle('guidedPractice', value => store.guidedPractice(value));
+  handle('submitGuidedStep', value => store.submitGuidedStep(value));
+  handle('requestGuidedHint', value => store.requestGuidedHint(value));
   handle('recordObservation', value => store.recordObservation(value));
   handle('reviewObservation', value => store.reviewObservation(value));
   handle('deleteAnalysis', value => { ensureIdle(); store.deleteAnalysis(id.parse(value)); });
@@ -147,6 +167,24 @@ function registerHandlers() {
   handle('snapshot', () => { store.maintainReports(); return { ...store.rendererSnapshot(), lmsConnections: lms.connections(), model: model.getStatus(), storagePath: app.getPath('userData') }; });
   handle('discoverMoodle', value => lms.discover(value));
   handle('connectMoodle', value => lms.connect(value));
+  handle('connectMoodleCourses', value => lms.connectCourses(value));
+  handle('copyMoodleSubmission', value => { ensureIdle(); return store.copyMoodleSubmission(value); });
+  handle('copyMoodleQuizReview', value => { ensureIdle(); return store.copyMoodleQuizReview(value); });
+  handle('copyMoodleComparison', value => { ensureIdle(); return store.copyMoodleComparison(value); });
+  handle('previewMoodleFile', async value => {
+    ensureIdle(); const file = store.readMoodleFile(value);
+    const material = await extractMaterialBufferLocal(file.filename, file.bytes);
+    ensureIdle(); store.readMoodleFile(value);
+    return { filename: file.filename, text: material.text, pageCount: material.pageCount };
+  });
+  handle('exportMoodleFile', async value => {
+    ensureIdle(); const file = store.readMoodleFile(value);
+    const result = await dialog.showSaveDialog({ title: 'Guardar archivo de entrega', defaultPath: basename(file.filename.replaceAll('\\', '/')) || 'entrega' });
+    if (result.canceled || !result.filePath) return false;
+    ensureIdle(); const current = store.readMoodleFile(value);
+    await writeFile(result.filePath, current.bytes); return true;
+  });
+  handle('forgetMoodleDiscovery', value => lms.forgetDiscovery(id.parse(value)));
   handle('syncMoodle', value => lms.sync(id.parse(value)));
   handle('cancelMoodleSync', value => lms.cancel(id.parse(value)));
   handle('configureMoodle', value => lms.configure(value));
@@ -239,6 +277,7 @@ function registerHandlers() {
   handle('reflectDiagnostic', value => store.reflectDiagnostic(z.object({ id, reflection: z.string().max(4000) }).parse(value)));
   handle('cancelDiagnostic', value => store.cancelDiagnostic(id.parse(value)));
   handle('createTask', value => store.createTask(taskInput.parse(value)));
+  handle('createPortfolioTask', value => { ensureIdle(); return store.createPortfolioTask(value); });
   handle('updateTask', value => store.updateTask(taskInput.extend({ id }).parse(value)));
   handle('completeTask', value => store.completeTask(z.object({ id, completed: z.boolean() }).parse(value)));
   handle('deleteTask', value => store.deleteTask(id.parse(value)));
@@ -303,6 +342,7 @@ function registerHandlers() {
     const encrypted = input.format === 'encrypted';
     const selection = await dialog.showSaveDialog(mainWindow, { title: encrypted ? 'Guardar copia cifrada' : 'Exportar historial JSON', defaultPath: `Tutor-Local-${new Date().toISOString().slice(0, 10)}.${encrypted ? 'tutor' : 'json'}`, filters: [{ name: encrypted ? 'Copia cifrada de Tutor Local' : 'Historial sin cifrar', extensions: [encrypted ? 'tutor' : 'json'] }] });
     if (selection.canceled || !selection.filePath) return false;
+    if (store.hasActiveMock()) throw new Error('Las copias estarán disponibles al terminar el simulacro.');
     await writeFile(selection.filePath, encrypted ? encodeBackup(store.exportData(), input.password!) : store.exportData());
     return true;
   });
@@ -312,10 +352,10 @@ function registerHandlers() {
     const selection = await dialog.showOpenDialog(mainWindow, { title: 'Restaurar una copia de Tutor Local', properties: ['openFile'], filters: [{ name: 'Copias de Tutor Local', extensions: ['tutor', 'json'] }] });
     if (selection.canceled) return false;
     const path = selection.filePaths[0];
-    if ((await stat(path)).size > 75 * 1024 * 1024) throw new Error('Esta copia supera el límite de 75 MB.');
-    const bytes = await readFile(path);
+    const bytes = await readLocalFile(path, MAX_BACKUP_FILE_BYTES);
     const raw = isEncryptedBackup(bytes) ? decodeBackup(bytes, input.password ?? '') : bytes.toString('utf8');
     ensureIdle();
+    if (store.hasActiveMock()) throw new Error('La restauración estará disponible al terminar el simulacro.');
     lms.cancelAll(); cancelMaterials(); ocr.cancel(); semantic.invalidate(); store.importData(raw); lms.restored();
     return true;
   });
@@ -323,21 +363,30 @@ function registerHandlers() {
 }
 
 const single = app.requestSingleInstanceLock();
-if (!single) app.quit();
+if (startupError) { void app.whenReady().then(() => { dialog.showErrorBox('No se puede abrir la carpeta portable', 'Extrae el ZIP en una carpeta con permiso de escritura y vuelve a abrir Tutor Local.'); app.quit(); }); }
+else if (!single) app.quit();
 else {
-  app.on('second-instance', () => { if (mainWindow) { if (mainWindow.isMinimized()) mainWindow.restore(); mainWindow.focus(); } });
+  app.on('second-instance', () => { const window = mainWindow ?? BrowserWindow.getAllWindows()[0]; if (window) { if (window.isMinimized()) window.restore(); window.focus(); } });
   app.whenReady().then(async () => {
     const directory = app.getPath('userData');
     mkdirSync(directory, { recursive: true });
-    if (!safeStorage.isEncryptionAvailable()) throw new Error('Windows no ofrece almacenamiento seguro de claves en esta sesión. No se guardarán datos sin cifrar.');
+    let unlockWindow: BrowserWindow | undefined;
     const keyPath = join(directory, 'vault-key.bin');
     const dataPath = join(directory, 'learning.tutor');
-    if (!existsSync(keyPath) && existsSync(dataPath)) throw new Error('Falta la clave del historial local. Restaura una copia portable para recuperar tus datos.');
     let key: Buffer;
-    if (existsSync(keyPath)) key = Buffer.from(safeStorage.decryptString(readFileSync(keyPath)), 'base64');
+    if (portable) {
+      const unlocked = await unlockPortable(directory, app.getAppPath());
+      if (!unlocked) { app.quit(); return; }
+      key = unlocked.key; unlockWindow = unlocked.window;
+    }
     else {
-      key = randomBytes(32);
-      writeFileSync(keyPath, safeStorage.encryptString(key.toString('base64')), { mode: 0o600 });
+      if (!safeStorage.isEncryptionAvailable()) throw new Error('Windows no ofrece almacenamiento seguro de claves en esta sesión. No se guardarán datos sin cifrar.');
+      if (!existsSync(keyPath) && existsSync(dataPath)) throw new Error('Falta la clave del historial local. Restaura una copia portable para recuperar tus datos.');
+      if (existsSync(keyPath)) key = Buffer.from(safeStorage.decryptString(readFileSync(keyPath)), 'base64');
+      else {
+        key = randomBytes(32);
+        writeFileSync(keyPath, safeStorage.encryptString(key.toString('base64')), { mode: 0o600 });
+      }
     }
     store = await Store.open(dataPath, key, require.resolve('sql.js/dist/sql-wasm.wasm'));
     ocr = new OcrService(store, app.isPackaged ? join(process.resourcesPath, 'ocr-runtime') : join(app.getAppPath(), '.tools/ocr-runtime'));
@@ -357,6 +406,7 @@ else {
       callback({ cancel: !allowed });
     });
     mainWindow = new BrowserWindow({ width: 1320, height: 890, minWidth: 960, minHeight: 700, show: false, title: 'Tutor Local', backgroundColor: '#f7f8f4', autoHideMenuBar: true, icon: join(app.getAppPath(), 'assets/icon.ico'), webPreferences: { preload: join(__dirname, 'preload.js'), nodeIntegration: false, contextIsolation: true, sandbox: true, spellcheck: false, offscreen: Boolean(process.env.TUTOR_SMOKE), backgroundThrottling: !process.env.TUTOR_SMOKE } });
+    unlockWindow?.destroy();
     mainWindow.setMenuBarVisibility(false);
     mainWindow.webContents.on('did-start-navigation', details => { if (details.isMainFrame && !details.isSameDocument) { ocr.cancel(); semantic.cancel(); activeChatController?.abort(); model.cancelChat(); } });
     mainWindow.webContents.on('render-process-gone', () => { ocr.cancel(); semantic.cancel(); activeChatController?.abort(); model.cancelChat(); });

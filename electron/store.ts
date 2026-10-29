@@ -4,12 +4,14 @@ import {z} from 'zod';
 import { existsSync } from 'node:fs';
 import type { Attempt, AttemptInput, Concept, ConceptInput, Diagnostic, DiagnosticView, Material, Message, Subject, SubjectInput, Snapshot, StudyTask, TaskInput } from '../shared/types.js';
 import { readEncrypted, writeEncrypted } from './vault.js';
+import { BACKUP_TABLE_LIMITS, MAX_BACKUP_JSON_BYTES, assertBackupJsonSize } from './backup-limits.js';
 import { estimate, getExercise, gradeExercise, matchesBankAnswer, EXERCISES } from './learning.js';
 import { dailyPlan, nextDiagnosticQuestion, reviewSchedule } from './planning.js';
-import { validateBackup, subjectInput, materialInput } from './validation.js';
+import { validateBackup, subjectInput, materialInput, portfolioTaskInput, taskInput as taskInputSchema } from './validation.js';
+import { portfolioTaskHash, portfolioTaskSourceRow } from './portfolio-tasks.js';
 import type { CurriculumItem, CurriculumInput, DidacticUnit, UnitInput, Flashcard, FlashcardInput, FlashcardRevision, CardReview, RecallRating, PortfolioEntry, PortfolioInput, EducationalEvent } from '../shared/education.js';
 import { scheduleCard, materialCardDrafts, errorCardDrafts, assertAcyclic, automaticPortfolioContent, type CardDraft } from './education.js';
-import { curriculumInput, unitInput, cardInput, portfolioInput, educationId } from './education-validation.js';
+import { curriculumInput, unitInput, cardInput, portfolioInput, portfolioRow, educationId } from './education-validation.js';
 import type { StudySession, SessionInput, SessionReview, StopReason } from '../shared/study.js';
 import { sessionElapsed, sessionRemaining } from '../shared/study.js';
 import { sessionInput, sessionReview, stopSession } from './study.js';
@@ -19,8 +21,9 @@ import type { Rubric, RubricInput, RubricVersion, RubricSubmission, RubricSubmis
 import { rubricInput, submissionInput, submissionHash, validateReview, RUBRIC_PROMPT_VERSION } from './rubrics.js';
 import type { LmsConnection, LmsItem, LmsItemVersion, LmsSyncRun } from '../shared/lms.js';
 import type { MoodleBatch } from './moodle.js';
-import { lmsConnectionRow, lmsItemRow, lmsRunRow } from './lms-validation.js';
+import { lmsConnectionRow, lmsItemRow, lmsRunRow, lmsOriginalFileRow } from './lms-validation.js';
 import { lmsHash, shortLmsTitle } from './lms-utils.js';
+import { moodleComparisonAttempts, type MoodleComparisonAttempt } from '../shared/moodle-comparison.js';
 import { dayKey, addDays } from '../shared/calendar.js';
 import type { WorkInput, LearningAnalysis, LearningObservation, ObservationReview, InterventionResponse, InterventionReview } from '../shared/pedagogy.js';
 import { workContext, arithmeticAnalysis, validateAnalysis, skillProfiles, analysisRow, observationInput, observationReviewInput, createIntervention, interventionInput, interventionAnswerInput, gradeIntervention, interventionReviewInput, publicIntervention, type InterventionRecord } from './pedagogy.js';
@@ -34,19 +37,23 @@ import { goalInput, goalReviewInput, alertReviewInput, goalProgress, learningAle
 import type { Capture, CaptureReview, CaptureSource, OcrReviewInput } from '../shared/ocr.js';
 import { ocrReviewInput, validateCapture } from './ocr-validation.js';
 import { MAX_CAPTURE_STORAGE } from './ocr-config.js';
+import { replayGuidance } from './guided-practice.js';
+import { independentCheckOn } from '../shared/learning-cycle.js';
+import { isNumericResult, arithmeticGuide, sameArithmeticValue } from './arithmetic.js';
 
 const EDUCATION_TABLES = ['curriculum', 'units', 'flashcards', 'card_revisions', 'card_reviews', 'portfolio', 'study_sessions', 'mock_exams', 'rubrics', 'rubric_versions', 'rubric_submissions', 'rubric_reviews', 'lms_connections', 'lms_items', 'lms_versions', 'lms_runs', 'learning_analyses', 'observation_reviews', 'interventions', 'intervention_responses', 'intervention_reviews', 'concept_relations', 'relation_reviews', 'interdisciplinary_projects', 'project_versions', 'project_works', 'project_activity_reviews', 'learning_reports', 'report_preferences', 'personal_goals', 'goal_reviews', 'alert_reviews', 'captures', 'capture_reviews'] as const;
 const TABLES = ['subjects', 'concepts', 'materials', 'attempts', 'messages', 'events', 'settings', 'diagnostics', 'tasks', ...EDUCATION_TABLES] as const;
 const DEFAULT_SETTINGS: Snapshot['settings'] = { name: '', dailyMinutes: 20, largeText: false, highContrast: false };
 
 export class Store {
+  private enforceBackupCapacity = false;
   private constructor(private db: Database, private sql: SqlJsStatic, private path: string, private key: Buffer) {}
 
   static async open(path: string, key: Buffer, wasmPath: string) {
     const sql = await initSqlJs({ locateFile: () => wasmPath });
     const db = existsSync(path) ? new sql.Database(readEncrypted(path, key)) : new sql.Database();
     const version = db.exec('PRAGMA user_version')[0]?.values[0]?.[0] ?? 0;
-    if (Number(version) > 12) { db.close(); throw new Error('Este historial pertenece a una versión más reciente de Tutor Local.'); }
+    if (Number(version) > 18) { db.close(); throw new Error('Este historial pertenece a una versión más reciente de Tutor Local.'); }
     db.run('PRAGMA foreign_keys = ON; PRAGMA secure_delete = ON;');
     db.run(`
       CREATE TABLE IF NOT EXISTS subjects (id TEXT PRIMARY KEY, data TEXT NOT NULL);
@@ -58,7 +65,7 @@ export class Store {
       CREATE TABLE IF NOT EXISTS settings (id TEXT PRIMARY KEY, data TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS diagnostics (id TEXT PRIMARY KEY, subject_id TEXT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE, data TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY, subject_id TEXT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE, data TEXT NOT NULL);
-      PRAGMA user_version = 12;
+      PRAGMA user_version = 18;
     `);
     for (const table of EDUCATION_TABLES) db.run(`CREATE TABLE IF NOT EXISTS ${table} (id TEXT PRIMARY KEY, subject_id TEXT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE, data TEXT NOT NULL)`);
     const store = new Store(db, sql, path, key);
@@ -69,6 +76,7 @@ export class Store {
     store.tickMock();
     store.maintainReports();
     store.persist();
+    store.enforceBackupCapacity = true;
     return store;
   }
 
@@ -87,10 +95,12 @@ export class Store {
   }
 
   private transaction<T>(action: () => T): T {
+    const previousUsage = this.enforceBackupCapacity ? this.backupUsage() : undefined;
     const before = this.bytes();
     this.db.run('BEGIN TRANSACTION');
     try {
       const result = action();
+      if (previousUsage) this.checkBackupCapacity(this.backupUsage(), previousUsage);
       this.db.run('COMMIT');
       this.persist();
       return result;
@@ -99,6 +109,26 @@ export class Store {
       this.db = new this.sql.Database(before);
       this.db.run('PRAGMA foreign_keys = ON; PRAGMA secure_delete = ON;');
       throw error;
+    }
+  }
+
+  private backupUsage() {
+    // Count UTF-8 JSON bytes without materializing or parsing the full history.
+    const rows = this.db.exec(TABLES.map(table => `SELECT '${table}', COUNT(*), COALESCE(SUM(length(CAST(data AS BLOB))), 0) FROM ${table}`).join(' UNION ALL '))[0].values;
+    const counts = Object.fromEntries(rows.map(([table, count]) => [String(table), Number(count)])) as Record<typeof TABLES[number], number>;
+    const envelope = JSON.stringify({ format: 'tutor-local', version: 18, exportedAt: new Date().toISOString(), tables: Object.fromEntries(TABLES.map(table => [table, []])) });
+    const bytes = Buffer.byteLength(envelope) + rows.reduce((total, [, count, size]) => total + Number(size) + Math.max(0, Number(count) - 1), 0);
+    return { counts, bytes };
+  }
+
+  private checkBackupCapacity(current: ReturnType<Store['backupUsage']>, previous?: ReturnType<Store['backupUsage']>) {
+    for (const table of TABLES) {
+      if (current.counts[table] > BACKUP_TABLE_LIMITS[table] && (!previous || current.counts[table] > previous.counts[table])) {
+        throw new Error('El historial ha alcanzado el límite de registros que admite una copia portable. No se ha guardado este cambio.');
+      }
+    }
+    if (current.bytes > MAX_BACKUP_JSON_BYTES && (!previous || current.bytes > previous.bytes)) {
+      throw new Error('El historial ha alcanzado el límite de 75 MB de las copias portables. No se ha guardado este cambio.');
     }
   }
 
@@ -189,7 +219,7 @@ export class Store {
   }
   rendererSnapshot() {
     this.tickMock(); const snapshot = this.snapshot(); const active = snapshot.mockExams.find(row => row.status === 'active');
-    if (!active) return snapshot;
+    if (!active) return { ...snapshot, lmsItems: snapshot.lmsItems.map(item => ({ ...item, local: { ...item.local, originals: item.local.originals?.map(({ base64: _bytes, ...file }) => file) } })) };
     return { ...snapshot, subjects: snapshot.subjects.map(subject => ({ ...subject, goals: '' })), mockExams: [active], concepts: snapshot.concepts.map(concept => ({ ...concept, description: '' })), attempts: [], diagnostics: [], materials: [], messages: [], estimates: [], reviews: [], plans: [], tasks: [], curriculum: [], units: [], flashcards: [], cardReviews: [], cardRevisions: [], cardSchedules: [], portfolio: [], events: [], studySessions: [], exerciseCatalog: [], rubrics: [], rubricVersions: [], rubricSubmissions: [], rubricReviews: [], lmsConnections: [], lmsItems: [], lmsVersions: [], lmsRuns: [], learningAnalyses: [], observationReviews: [], skillProfiles: [], interventions: [], interventionResponses: [], interventionReviews: [],conceptRelations:[],relationReviews:[],relationSuggestions:[],transfers:[],learningGraph:{nodes:[],edges:[]},interdisciplinaryProjects:[],projectVersions:[],projectWorks:[],projectActivityReviews:[],projectSuggestions:[],learningReports:[],reportPreferences:[],personalGoals:[],goalReviews:[],goalProgress:[],learningAlerts:[],alertReviews:[],learningHabits:[],recentChanges:[],captures:[],captureReviews:[] };
   }
   deleteSubject(id: string) {
@@ -442,6 +472,20 @@ export class Store {
     if (!task) throw new Error('No se encuentra esta tarea.');
     return task;
   }
+  createPortfolioTask(value: unknown): StudyTask {
+    if (this.hasActiveMock()) throw new Error('Termina el simulacro antes de añadir una tarea desde el portfolio.');
+    const input = portfolioTaskInput.parse(value), entry = this.requireEducation<PortfolioEntry>('portfolio', input.portfolioId);
+    const portfolioSource = portfolioTaskSourceRow.parse({ entryId: entry.id, title: entry.title, content: entry.content, reflection: entry.reflection, createdAt: entry.createdAt, hash: portfolioTaskHash(entry) });
+    if (entry.conceptIds.length > 30) throw new Error('Este trabajo tiene más de 30 conceptos vinculados. Crea la tarea desde Mi plan y elige los conceptos que quieres practicar.');
+    const taskInput = taskInputSchema.parse({ subjectId: entry.subjectId, title: input.title, notes: input.notes, dueDate: input.dueDate, estimatedMinutes: input.estimatedMinutes, conceptIds: [...entry.conceptIds], unitId: null, curriculumIds: [] });
+    this.checkTask(taskInput);
+    const existing = this.list<StudyTask>('tasks').find(task => task.status === 'pending' && task.portfolioSource?.entryId === entry.id && task.portfolioSource.hash === portfolioSource.hash && task.title === input.title && task.notes === input.notes && task.dueDate === input.dueDate && task.estimatedMinutes === input.estimatedMinutes);
+    if (existing) return existing;
+    return this.transaction(() => {
+      const task: StudyTask = { ...taskInput, id: randomUUID(), status: 'pending', completedAt: null, createdAt: new Date().toISOString(), portfolioSource };
+      this.put('tasks', task); this.event('task.created', task.subjectId, { taskId: task.id, portfolioId: entry.id }); return task;
+    });
+  }
   updateTask(input: TaskInput & { id: string }) {
     const task = this.requireTask(input.id);
     if (task.subjectId !== input.subjectId) throw new Error('Una tarea no puede trasladarse a otra asignatura.');
@@ -603,6 +647,11 @@ export class Store {
     const entry = this.requireEducation<PortfolioEntry>('portfolio', id);
     this.transaction(() => {
       this.detachProjectSource('portfolio',id);
+      for (const analysis of this.list<LearningAnalysis>('learning_analyses')) if (analysis.source.kind === 'portfolio' && analysis.source.id === id) this.removeAnalysis(analysis.id);
+      for (const task of this.list<StudyTask>('tasks')) if (task.portfolioSource?.entryId === id) {
+        this.replace('tasks', { ...task, portfolioSource: { ...task.portfolioSource, entryId: null } });
+        this.event('task.source_detached', task.subjectId, { taskId: task.id, portfolioId: id });
+      }
       this.db.run('DELETE FROM portfolio WHERE id = ?', [id]);
       for (const row of this.list<RubricSubmission>('rubric_submissions')) if (row.source?.kind === 'portfolio' && row.source.id === id){this.detachProjectSource('submission',row.id);this.replace('rubric_submissions', { ...row, source: null });}
       this.event('portfolio.deleted', entry.subjectId, { entryId: id });
@@ -857,6 +906,7 @@ export class Store {
     const previous = this.list<ObservationReview>('observation_reviews').filter(r => r.observationId === input.observationId).at(-1);
     const followUp = input.followUpResponseId ? this.requireEducation<InterventionResponse>('intervention_responses', input.followUpResponseId) : undefined;
     if (followUp && this.requireEducation<InterventionRecord>('interventions', followUp.interventionId).observationId !== input.observationId) throw new Error('La comprobación posterior debe corresponder a esta observación.');
+    if (followUp) { const plan = this.requireEducation<InterventionRecord>('interventions', followUp.interventionId); if (plan.independent && !plan.activities.find(activity => activity.id === followUp.activityId)?.followUp) throw new Error('Selecciona la comprobación posterior, no una práctica guiada.'); }
     const planTimes = this.list<InterventionRecord>('interventions').filter(i=>i.observationId===input.observationId).map(i=>Date.parse(i.createdAt)+1);
     const row: ObservationReview = { ...input, id: randomUUID(), subjectId: analysis.subjectId, supersedesId: previous?.id ?? null, createdAt: new Date(Math.max(Date.now(), Date.parse(previous?.createdAt ?? analysis.createdAt)+1, Date.parse(followUp?.createdAt ?? analysis.createdAt), ...planTimes)).toISOString() };
     this.transaction(() => { this.put('observation_reviews', row); this.event('learning.observation_reviewed', row.subjectId, { reviewId: row.id, observationId: row.observationId, decision: row.decision, followUpResponseId: row.followUpResponseId }); }); return row;
@@ -871,21 +921,83 @@ export class Store {
     this.db.run('DELETE FROM learning_analyses WHERE id = ?', [id]);
   }
   deleteAnalysis(id: string) { const row = this.requireEducation<LearningAnalysis>('learning_analyses', id); this.transaction(() => { this.removeAnalysis(id); this.event('learning.analysis_deleted', row.subjectId, { analysisId: id }); }); }
+  prepareMoodlePractice(value: unknown) {
+    if (this.hasActiveMock()) throw new Error('Termina el simulacro antes de revisar una entrega.');
+    const input = z.object({ itemId: z.uuid(), revision: z.number().int().positive() }).strict().parse(value);
+    const item = this.requireLmsItem(input.itemId), connection = this.requireLmsConnection(item.connectionId);
+    const version = this.list<LmsItemVersion>('lms_versions').find(row => row.itemId === item.id && row.revision === input.revision);
+    if (!version || version.subjectId !== item.subjectId || version.data.kind !== 'activity' || version.data.module !== 'assign') throw new Error('Selecciona una entrega de trabajo de Moodle.');
+    const data = version.data, submission = data.submission;
+    if (!submission?.text.trim() || submission.status !== 'submitted' || submission.group) throw new Error('Este recorrido necesita una entrega personal enviada con texto recuperado.');
+    const sourceKey = createHash('sha256').update(JSON.stringify([connection.siteUrl, connection.courseId, item.remoteKey, version.revision, submission.attempt])).digest('hex');
+    let entry = this.list<PortfolioEntry>('portfolio').find(row => row.subjectId === item.subjectId && row.moodlePracticeSource?.sourceKey === sourceKey);
+    return this.transaction(() => {
+      if (!entry) {
+        entry = portfolioRow.parse({ id: randomUUID(), subjectId: item.subjectId, title: shortLmsTitle(`Revisar: ${data.title}`), kind: 'work', content: submission.text, reflection: '', conceptIds: [], evidenceIds: [], automatic: false, createdAt: new Date().toISOString(), moodlePracticeSource: { url: data.url, courseName: connection.courseName, revision: version.revision, attempt: submission.attempt, instructions: data.instructions, feedback: data.submissionFeedback ?? "", submittedAt: submission.updatedAt, sourceKey } });
+        this.put('portfolio', entry); this.event('learning.moodle_work_prepared', entry.subjectId, { portfolioId: entry.id, sourceKey });
+      }
+      let analysis = this.list<LearningAnalysis>('learning_analyses').find(row => row.source.kind === 'portfolio' && row.source.id === entry!.id && row.engine === 'arithmetic');
+      if (!analysis) {
+        const work = this.workContext({ kind: 'portfolio', id: entry!.id });
+        analysis = analysisRow.parse({ ...arithmeticAnalysis(work), id: randomUUID(), createdAt: new Date(Math.max(Date.now(), Date.parse(entry!.createdAt))).toISOString() });
+        this.put('learning_analyses', analysis);
+      }
+      return { portfolioId: entry!.id, analysisId: analysis.id };
+    });
+  }
+  private guidedContext(value: unknown) {
+    if (this.hasActiveMock()) throw new Error('Termina el simulacro antes de practicar.');
+    const input = z.object({ interventionId: z.uuid(), activityId: z.uuid() }).strict().parse(value);
+    const plan = this.requireEducation<InterventionRecord>('interventions', input.interventionId), activity = plan.activities.find(row => row.id === input.activityId);
+    if (!plan.guidance || !activity || activity.followUp || activity.kind === 'open') throw new Error('Esta actividad no admite práctica guiada.');
+    if (plan.activities[1].id === activity.id && !this.list<InterventionResponse>('intervention_responses').some(response => response.activityId === plan.activities[0].id)) throw new Error('Completa primero la primera práctica.');
+    const turns = plan.guidance.filter(turn => turn.activityId === activity.id);
+    return { plan, activity, turns };
+  }
+  guidedPractice(value: unknown) { const { activity, turns } = this.guidedContext(value); return replayGuidance(activity, turns).view; }
+  submitGuidedStep(value: unknown) {
+    const input = z.object({ interventionId: z.uuid(), activityId: z.uuid(), answer: z.string().trim().min(1).max(20000) }).strict().parse(value);
+    return this.advanceGuidance({ interventionId: input.interventionId, activityId: input.activityId }, 'answer', input.answer);
+  }
+  requestGuidedHint(value: unknown) { return this.advanceGuidance(value, 'hint', ''); }
+  private advanceGuidance(value: unknown, kind: 'answer' | 'hint', answer: string) {
+    const { plan, activity, turns } = this.guidedContext(value);
+    if (plan.guidance!.length >= 300) throw new Error('Este refuerzo ha alcanzado su límite de intentos. Conserva lo aprendido e inicia otro refuerzo.');
+    const createdAt = new Date(Math.max(Date.now(), Date.parse(plan.guidance!.at(-1)?.createdAt ?? plan.createdAt))).toISOString();
+    const turn = { activityId: activity.id, kind, answer, createdAt }, result = replayGuidance(activity, [...turns, turn]);
+    this.transaction(() => {
+      this.replace('interventions', { ...plan, guidance: [...plan.guidance!, turn] });
+      if (result.view.completed) {
+        const response: InterventionResponse = { id: randomUUID(), subjectId: plan.subjectId, interventionId: plan.id, activityId: activity.id, answer: result.finalAnswer!, ...gradeIntervention(activity, result.finalAnswer!), hints: result.totalHints, durationSeconds: Math.min(86400, Math.max(0, Math.floor((Date.parse(createdAt) - Date.parse(turns[0]?.createdAt ?? createdAt)) / 1000))), createdAt };
+        this.put('intervention_responses', response);
+        this.event('reinforcement.practiced', plan.subjectId, { interventionId: plan.id, responseId: response.id, outcome: response.outcome, hints: response.hints });
+      }
+    });
+    return result.view;
+  }
   startIntervention(value: unknown) {
+    if (this.hasActiveMock()) throw new Error('Termina el simulacro antes de iniciar un refuerzo.');
     const input = interventionInput.parse(value), { analysis, observation } = this.requireObservation(input.analysisId, input.observationId);
     if (observation.signal !== 'difficulty' || this.list<ObservationReview>('observation_reviews').filter(r => r.observationId === observation.id).at(-1)?.decision !== 'accepted') throw new Error('Revisa y acepta primero la observación que quieres trabajar.');
     const work = this.workContext(analysis.source), concept = work.conceptIds[0] ? this.requireConcept(work.conceptIds[0]) : undefined;
     const plan = createIntervention(analysis, observation, work, input.minutes, concept);
+    if (input.guided && plan.activities.some(activity => activity.kind === 'arithmetic' && arithmeticGuide(activity.expression!).some(step => !isNumericResult(step.expected) || !sameArithmeticValue(step.expected, step.expected)))) throw new Error('Este cálculo necesita resultados demasiado extensos para el recorrido guiado. Conserva el trabajo y revísalo mediante una observación personal.');
+    if (input.guided) plan.independent = true;
+    if (input.guided && plan.activities.every(activity => activity.kind !== 'open')) plan.guidance = [];
     const accepted = this.list<ObservationReview>('observation_reviews').filter(r=>r.observationId===observation.id).at(-1)!;
     plan.createdAt = new Date(Math.max(Date.parse(plan.createdAt),Date.parse(accepted.createdAt)+1)).toISOString();
     plan.followUpOn = addDays(dayKey(new Date(plan.createdAt)),1);
     this.transaction(() => { this.put('interventions', plan); this.event('reinforcement.started', plan.subjectId, { interventionId: plan.id, observationId: observation.id }); }); return publicIntervention(plan);
   }
   answerIntervention(value: unknown) {
+    if (this.hasActiveMock()) throw new Error('Termina el simulacro antes de practicar.');
     const input = interventionAnswerInput.parse(value), plan = this.requireEducation<InterventionRecord>('interventions', input.interventionId), activity = plan.activities.find(a => a.id === input.activityId);
+    if (plan.guidance && activity && !activity.followUp) throw new Error('Completa esta práctica mediante sus pasos guiados.');
+    if (plan.independent && activity?.followUp && input.hints !== 0) throw new Error('La comprobación independiente no admite pistas.');
+    if (plan.independent && activity?.kind === 'arithmetic' && !isNumericResult(input.answer)) throw new Error('Escribe el resultado como número o fracción, no la operación sin resolver.');
     if (!activity) throw new Error('La actividad no pertenece a este refuerzo.');
     const responses = this.list<InterventionResponse>('intervention_responses'); if (responses.some(r => r.activityId === activity.id)) throw new Error('Esta respuesta ya está guardada. Puedes iniciar otro refuerzo sin sobrescribirla.');
-    if (activity.followUp && (dayKey() < plan.followUpOn || plan.activities.filter(a => !a.followUp).some(a => !responses.some(r => r.activityId === a.id)))) throw new Error('La comprobación posterior estará disponible después de completar la práctica y en otro día.');
+    if (activity.followUp && (dayKey() < independentCheckOn(plan, responses) || plan.activities.filter(a => !a.followUp).some(a => !responses.some(r => r.activityId === a.id)))) throw new Error('La comprobación posterior estará disponible después de completar la práctica y en otro día.');
     const row: InterventionResponse = { ...input, ...gradeIntervention(activity, input.answer), id: randomUUID(), subjectId: plan.subjectId, createdAt: new Date(Math.max(Date.now(), Date.parse(plan.createdAt), ...responses.filter(r => r.interventionId === plan.id).map(r => Date.parse(r.createdAt)))).toISOString() };
     this.transaction(() => { this.put('intervention_responses', row); this.event(activity.followUp ? 'reinforcement.checked' : 'reinforcement.practiced', plan.subjectId, { interventionId: plan.id, responseId: row.id, outcome: row.outcome, hints: row.hints }); }); return row;
   }
@@ -1033,10 +1145,92 @@ export class Store {
     const row = lmsConnectionRow.parse(value); this.requireSubject(row.subjectId);
     return this.transaction(() => { this.list<LmsConnection>('lms_connections').some(c => c.id === row.id) ? this.replace('lms_connections', row) : this.put('lms_connections', row); return row; });
   }
+  copyMoodleSubmission(value: unknown): PortfolioEntry {
+    if (this.hasActiveMock()) throw new Error('El portfolio estará disponible al terminar el simulacro.');
+    const input = z.object({ itemId: z.uuid(), revision: z.number().int().positive(), reflection: z.string().max(10000), attempt: z.number().int().nonnegative().optional() }).strict().parse(value);
+    const item = this.requireLmsItem(input.itemId), connection = this.requireLmsConnection(item.connectionId);
+    const version = this.list<LmsItemVersion>('lms_versions').find(row => row.itemId === item.id && row.revision === input.revision);
+    if (!version || version.subjectId !== item.subjectId || version.connectionId !== connection.id || version.data.kind !== 'activity') throw new Error('Esta versión no contiene una entrega de texto que puedas guardar.');
+    const data = version.data;
+    const historical = input.attempt === undefined ? undefined : data.previousSubmissions?.find(entry => entry.submission.attempt === input.attempt);
+    if (input.attempt !== undefined && !historical) throw new Error('Este intento no existe en la versión seleccionada.');
+    const submission = historical?.submission ?? data.submission;
+    if (!submission?.text.trim()) throw new Error('Este intento no contiene una entrega de texto que puedas guardar.');
+    const feedback = historical?.feedback ?? data.submissionFeedback;
+    const attemptLabel = historical ? `Intento histórico de Moodle: ${submission.attempt + 1}\n` : '';
+    const status = ({ new: 'Sin enviar', draft: 'Borrador', submitted: 'Enviada', reopened: 'Reabierta' } as Record<string, string>)[submission.status] ?? submission.status;
+    const files = submission.files?.length ? '\n\nArchivos de la entrega (solo referencias, no se incluyen los archivos):\n' + submission.files.map(file => `${file.filepath}${file.filename} · ${file.size} bytes`).join('\n') : '';
+    const content = `Copia personal de una entrega de Moodle\nCurso: ${connection.courseName}\nSitio: ${connection.siteName}\nFuente: ${data.url}\n${attemptLabel}Versión local: ${version.revision}\nImportada: ${version.updatedAt}\nEstado de la entrega: ${status}\n\nEnunciado\n${data.instructions}\n\nMi entrega\n${submission.text}\n\nComentarios recibidos\n${feedback || 'Sin comentarios en esta versión.'}${files}\n\nEsta copia conserva la versión seleccionada y no se actualiza con Moodle. No constituye por sí sola una evidencia de dominio.`;
+    if (content.length > 50000) throw new Error('El trabajo completo supera los 50.000 caracteres del portfolio. Puedes crear una selección manual; no se ha recortado ni guardado el texto.');
+    const previous = this.list<PortfolioEntry>('portfolio').find(row => row.subjectId === item.subjectId && row.kind === 'work' && !row.automatic && row.content === content && row.reflection === input.reflection);
+    if (previous) return previous;
+    return this.savePortfolio({ subjectId: item.subjectId, title: shortLmsTitle(data.title || 'Mi entrega de Moodle'), kind: 'work', content, reflection: input.reflection, conceptIds: [], evidenceIds: [] });
+  }
+  copyMoodleQuizReview(value: unknown): PortfolioEntry {
+    if (this.hasActiveMock()) throw new Error('Termina el simulacro antes de guardar una revisión.');
+    const input = z.object({ itemId: z.uuid(), revision: z.number().int().positive(), attemptId: z.number().int().positive(), reflection: z.string().max(10000) }).strict().parse(value);
+    const item = this.requireLmsItem(input.itemId), connection = this.requireLmsConnection(item.connectionId);
+    const version = this.list<LmsItemVersion>('lms_versions').find(row => row.itemId === item.id && row.revision === input.revision);
+    if (!version || version.data.kind !== 'activity' || version.data.module !== 'quiz') throw new Error('No se encuentra esta revisión de cuestionario.');
+    const attempt = version.data.quizAttempts?.find(row => row.id === input.attemptId);
+    if (!attempt || attempt.state !== 'finished' || !['available', 'cached'].includes(attempt.reviewState) || !attempt.reviewText.trim()) throw new Error('Moodle no ha permitido recuperar el contenido de esta revisión.');
+    const content = `Copia personal de una revisión de cuestionario de Moodle\nCurso: ${connection.courseName}\nFuente: ${connection.siteUrl}/mod/quiz/review.php?attempt=${attempt.id}\nIntento: ${attempt.number}\nVersión local: ${version.revision}\nImportada: ${version.updatedAt}\nPuntos publicados: ${attempt.points ?? 'No disponibles'}\n\nRevisión recuperada\n${attempt.reviewText}\n\nEsta copia no se actualiza con Moodle ni constituye por sí sola evidencia de dominio.`;
+    if (content.length > 50000) throw new Error('La revisión completa supera los 50.000 caracteres. No se ha recortado ni guardado.');
+    const previous = this.list<PortfolioEntry>('portfolio').find(row => row.subjectId === item.subjectId && row.kind === 'work' && !row.automatic && row.content === content && row.reflection === input.reflection);
+    if (previous) return previous;
+    return this.savePortfolio({ subjectId: item.subjectId, title: shortLmsTitle(`${version.data.title} · Intento ${attempt.number}`), kind: 'work', content, reflection: input.reflection, conceptIds: [], evidenceIds: [] });
+  }
+  copyMoodleComparison(value: unknown): PortfolioEntry {
+    if (this.hasActiveMock()) throw new Error('Termina el simulacro antes de guardar una comparación.');
+    const reflectionText = z.string().trim().min(1).max(3000);
+    const input = z.object({ itemId: z.uuid(), revision: z.number().int().positive(), firstAttemptId: z.string().regex(/^(assign|quiz):\d{1,16}$/), secondAttemptId: z.string().regex(/^(assign|quiz):\d{1,16}$/), whatChanged: reflectionText, whatChecked: reflectionText, nextStep: reflectionText }).strict().parse(value);
+    if (input.firstAttemptId === input.secondAttemptId) throw new Error('Elige dos intentos distintos para guardar la comparación.');
+    const item = this.requireLmsItem(input.itemId), connection = this.requireLmsConnection(item.connectionId);
+    const version = this.list<LmsItemVersion>('lms_versions').find(row => row.itemId === item.id && row.revision === input.revision);
+    if (!version || version.data.kind !== 'activity') throw new Error('No se encuentra esta versión de la actividad.');
+    const candidates = moodleComparisonAttempts(version.data);
+    const first = candidates.find(row => row.id === input.firstAttemptId), second = candidates.find(row => row.id === input.secondAttemptId);
+    if (!first || !second) throw new Error('No se encuentran dos intentos disponibles en esta versión local.');
+    const states: Record<string, string> = { new: 'Sin enviar', draft: 'Borrador', submitted: 'Enviada', reopened: 'Reabierta', finished: 'Finalizado' };
+    const describe = (attempt: MoodleComparisonAttempt) => `Intento ${attempt.number}\nEstado: ${states[attempt.status] ?? attempt.status}\nFecha: ${attempt.updatedAt ?? 'No disponible'}${attempt.group === null ? `\nFuente del intento: ${connection.siteUrl}/mod/quiz/review.php?attempt=${attempt.id.slice(5)}` : ''}\n${attempt.group === null ? `Puntos publicados: ${attempt.points ?? 'No disponibles'}` : attempt.group ? 'Entrega de grupo' : 'Entrega personal'}${attempt.cached ? '\nRevisión descargada anteriormente; no se pudo actualizar.' : ''}\n\nTexto original recuperado\n${attempt.text || 'Sin texto recuperado.'}\n\nComentarios recuperados\n${attempt.feedback || 'Sin comentarios separados.'}\n\nArchivos adjuntos (solo referencias)\n${attempt.files.map(file => `${file.filepath === '/' ? '' : file.filepath}${file.filename} · ${file.size} bytes`).join('\n') || 'Sin referencias a archivos.'}`;
+    const content = `Copia personal de una comparación de intentos de Moodle\nActividad: ${version.data.title}\nCurso: ${connection.courseName}\nFuente: ${version.data.url}\nVersión local: ${version.revision}\nImportada: ${version.updatedAt}\n\nInstrucciones de esta versión local\n${version.data.instructions || 'Sin instrucciones recuperadas.'}\n\nPrimer intento seleccionado\n${describe(first)}\n\nSegundo intento seleccionado\n${describe(second)}\n\nLos cambios de texto y esta reflexión no demuestran por sí solos mejora, corrección ni dominio. Los archivos adjuntos no están incluidos en esta copia. Los enunciados corresponden a la versión local seleccionada.`;
+    if (content.length > 50000) throw new Error('La comparación completa supera los 50.000 caracteres. No se ha recortado ni guardado.');
+    const reflection = `Qué he cambiado\n${input.whatChanged}\n\nQué he comprobado\n${input.whatChecked}\n\nQué practicaré después\n${input.nextStep}`;
+    const previous = this.list<PortfolioEntry>('portfolio').find(row => row.subjectId === item.subjectId && row.kind === 'work' && !row.automatic && row.content === content && row.reflection === reflection);
+    if (previous) return previous;
+    return this.savePortfolio({ subjectId: item.subjectId, title: shortLmsTitle(`${version.data.title} · Comparación ${first.number} y ${second.number}`), kind: 'work', content, reflection, conceptIds: [], evidenceIds: [] });
+  }
+  saveMoodleSetup(subjects: { id: string; name: string }[], values: LmsConnection[]): LmsConnection[] {
+    const connections = values.map(value => lmsConnectionRow.parse(value));
+    const time = new Date().toISOString();
+    const created: Subject[] = subjects.map(subject => ({ ...subjectInput.parse({ name: subject.name, level: '', teacher: '', goals: '', color: 'sage' }), id: subject.id, createdAt: time, isDemo: false }));
+    const ids = new Set(created.map(subject => subject.id));
+    if (ids.size !== created.length || new Set(connections.map(connection => connection.id)).size !== connections.length) throw new Error('Hay asignaturas o conexiones repetidas.');
+    if (created.some(subject => !connections.some(connection => connection.subjectId === subject.id))) throw new Error('Cada asignatura nueva debe corresponder a un curso.');
+    return this.transaction(() => {
+      for (const subject of created) {
+        if (this.list<Subject>('subjects').some(row => row.id === subject.id)) throw new Error('La asignatura ya existe.');
+        this.put('subjects', subject); this.event('subject.created', subject.id);
+      }
+      for (const connection of connections) {
+        this.requireSubject(connection.subjectId);
+        this.list<LmsConnection>('lms_connections').some(row => row.id === connection.id) ? this.replace('lms_connections', connection) : this.put('lms_connections', connection);
+      }
+      return connections;
+    });
+  }
   recordLmsRun(value: LmsSyncRun) {
     const row = lmsRunRow.parse(value); const connection = this.requireLmsConnection(row.connectionId);
     if (row.subjectId !== connection.subjectId) throw new Error('La sincronización pertenece a otra asignatura.');
     this.transaction(() => { this.put('lms_runs', row); this.event('lms.sync_completed', row.subjectId, { runId: row.id, connectionId: row.connectionId, status: row.status, changes: row.changes.length }); }); return row;
+  }
+  readMoodleFile(value: unknown) {
+    if (this.activeMockId()) throw new Error('Termina el examen antes de consultar archivos.');
+    const input = z.object({ itemId: z.uuid(), hash: z.string().regex(/^[a-f0-9]{64}$/) }).strict().parse(value);
+    const item = this.list<LmsItem>('lms_items').find(row => row.id === input.itemId);
+    if (item?.data.kind !== 'resource' || item.data.source !== 'submission') throw new Error('No se encuentra este archivo de entrega.');
+    const original = lmsOriginalFileRow.parse(item.local.originals?.find(file => file.hash === input.hash));
+    return { filename: original.filename, bytes: Buffer.from(original.base64, 'base64') };
   }
   applyMoodleBatch(connectionId: string, batch: MoodleBatch, input: { startedAt: string; trigger: LmsSyncRun['trigger'] }): LmsSyncRun {
     const connection = this.requireLmsConnection(connectionId);
@@ -1061,9 +1255,17 @@ export class Store {
         item.data = structuredClone(row.data); item.active = true;
         if (item.data.kind === 'activity' && previous?.data.kind === 'activity') {
           if (item.data.submission === undefined && previous.data.submission !== undefined) item.data.submission = previous.data.submission;
+          if (item.data.quizAttempts === undefined && previous.data.quizAttempts !== undefined) { item.data.quizId = previous.data.quizId; item.data.quizAttempts = previous.data.quizAttempts; }
+          if (item.data.previousSubmissions === undefined && previous.data.previousSubmissions !== undefined) item.data.previousSubmissions = previous.data.previousSubmissions;
           if (item.data.submissionFeedback === undefined && previous.data.submissionFeedback !== undefined) item.data.submissionFeedback = previous.data.submissionFeedback;
         }
         if (row.cache) item.local = { ...item.local, ...row.cache };
+        if (row.original) {
+          const original = lmsOriginalFileRow.parse(row.original);
+          if (item.data.kind !== 'resource' || item.data.source !== 'submission' || item.data.contentHash !== original.hash) throw new Error('El archivo no corresponde a esta entrega.');
+          item.local.originals ??= [];
+          if (!item.local.originals.some(file => file.hash === original.hash)) item.local.originals.push(original);
+        }
         if (!item.local.suppressed && item.data.kind === 'activity' && (item.data.module === 'assign' || (item.data.module === 'quiz' && item.data.dueAt))) {
           const existing = item.local.taskId ? this.list<StudyTask>('tasks').find(t => t.id === item.local.taskId) : undefined;
           const source = { connectionId, itemId: item.id, titleOverridden: false, dateOverridden: false, statusOverridden: false };
@@ -1073,9 +1275,13 @@ export class Store {
           if (!task.lms!.statusOverridden && item.data.submission !== undefined) {
             const submitted = item.data.submission?.status === 'submitted'; task.status = submitted ? 'completed' : 'pending'; task.completedAt = submitted ? (task.completedAt ?? item.data.submission?.updatedAt ?? time) : null;
           }
+          if (!task.lms!.statusOverridden && item.data.module === 'quiz' && item.data.quizAttempts !== undefined) {
+            const latest = item.data.quizAttempts.at(-1), finished = latest?.state === 'finished';
+            task.status = finished ? 'completed' : 'pending'; task.completedAt = finished ? (task.completedAt ?? latest.finishedAt ?? time) : null;
+          }
           item.local.taskId = task.id; existing ? this.replace('tasks', task) : this.put('tasks', task);
         }
-        if (!item.local.suppressed && row.material && item.data.kind === 'resource') {
+        if (!item.local.suppressed && row.material && item.data.kind === 'resource' && item.data.source !== 'submission') {
           const textHash = createHash('sha256').update(row.material.text).digest('hex'); const old = previous?.data.kind === 'resource' ? previous.data.contentHash : null;
           const latest = this.list<Material>('materials').find(m => m.id === item.local.materialIds.at(-1));
           if (!latest || latest.hash !== textHash || old !== item.data.contentHash) {
@@ -1087,7 +1293,7 @@ export class Store {
         save(item, previous);
       }
       for (const previous of owned.filter(i => i.active && !seen.has(i.remoteKey))) {
-        const scope = previous.data.kind === 'activity' ? 'activities' : previous.data.kind === 'grade' ? 'grades' : 'resources';
+        const scope = previous.data.kind === 'activity' ? 'activities' : previous.data.kind === 'grade' ? 'grades' : previous.data.source === 'submission' ? 'submissions' : 'resources';
         if (batch.scopes[scope] === 'ok') save({ ...previous, active: false }, previous);
       }
       run.message = `${run.changes.filter(c => c.kind === 'added').length} añadidos · ${run.changes.filter(c => c.kind === 'updated').length} actualizados · ${run.changes.filter(c => c.kind === 'withdrawn').length} retirados.`;
@@ -1107,12 +1313,17 @@ export class Store {
     });
   }
   exportData(): string {
-    return JSON.stringify({ format: 'tutor-local', version: 12, exportedAt: new Date().toISOString(), tables: Object.fromEntries(TABLES.map(table => [table, this.list(table)])) }, null, 2);
+    this.checkBackupCapacity(this.backupUsage());
+    const json = JSON.stringify({ format: 'tutor-local', version: 18, exportedAt: new Date().toISOString(), tables: Object.fromEntries(TABLES.map(table => [table, this.list(table)])) });
+    assertBackupJsonSize(json);
+    try { validateBackup(json); }
+    catch (cause) { throw new Error('No se ha creado la copia porque el historial contiene datos que no se podrían restaurar. El historial original se conserva.', { cause }); }
+    return json;
   }
   importData(data: string) {
     const originalVersion = JSON.parse(data).version;
     const parsed = JSON.parse(validateBackup(data));
-    if (parsed.format !== 'tutor-local' || parsed.version !== 12 || !parsed.tables) throw new Error('Esta copia no tiene un formato compatible.');
+    if (parsed.format !== 'tutor-local' || parsed.version !== 18 || !parsed.tables) throw new Error('Esta copia no tiene un formato compatible.');
     // Strict validation happens before IPC reaches this method. Rebuild atomically rather than merge IDs.
     return this.transaction(() => {
       this.db.run('DELETE FROM subjects; DELETE FROM events; DELETE FROM settings;');

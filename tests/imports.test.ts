@@ -115,9 +115,9 @@ test('los nuevos materiales mantienen versiones, copias cifradas y aislamiento s
     assert.equal(current.length, 1); assert.match(current[0].text, /segunda/); assert.doesNotMatch(current[0].text, /primera/);
     const snapshot = store.snapshot(); assert.equal(snapshot.attempts.length, 0); assert.ok(snapshot.estimates.every(e => e.status === 'unseen'));
     const copy = decodeBackup(encodeBackup(store.exportData(), 'copia privada segura'), 'copia privada segura'); store.importData(copy);
-    assert.equal(JSON.parse(store.exportData()).version, 12);
+    assert.equal(JSON.parse(store.exportData()).version, 18);
     const legacy = JSON.parse(store.exportData()); legacy.version = 10; legacy.tables.materials = legacy.tables.materials.filter((m: { kind: string }) => m.kind === 'note'); store.importData(JSON.stringify(legacy));
-    assert.equal(JSON.parse(store.exportData()).version, 12); assert.equal(store.snapshot().attempts.length, 0);
+    assert.equal(JSON.parse(store.exportData()).version, 18); assert.equal(store.snapshot().attempts.length, 0);
     assert.throws(() => store.addMaterial(subject.id, 'Inválido', 'exe', 'contenido'));
   } finally { store.close(); }
   assert.equal((await readFile(path)).includes(Buffer.from('Contenido html')), false);

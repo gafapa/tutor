@@ -21,7 +21,7 @@ export const reportRow = z.object({
   concepts: z.array(conceptRow).min(1).max(10000), attemptIds: z.array(id).max(100000), activityEventIds: z.array(id).max(200000),
   stats: z.object({ verified: z.number().int().nonnegative(), personal: z.number().int().nonnegative(), correctWithoutHints: z.number().int().nonnegative(), activeDays: z.number().int().nonnegative(), exerciseSeconds: z.number().int().nonnegative(), otherActivities: z.number().int().nonnegative() }).strict(),
   help: z.array(z.object({ reviewId: id, interventionId: id, whatHelped: z.string().max(4000), nextStep: z.string().max(4000) }).strict()).max(20),
-  reflection: z.string().max(4000), origin: z.enum(['automatic', 'manual']), supersedesId: id.nullable(), revision: z.number().int().positive(), engineVersion: z.literal('reports-1'), createdAt: stamp,
+  reflection: z.string().max(4000), origin: z.enum(['automatic', 'manual']), supersedesId: id.nullable(), revision: z.number().int().positive(), engineVersion: z.enum(['reports-1', 'reports-2']), createdAt: stamp,
 }).strict();
 export const reportPreferenceRow = z.object({ id, subjectId: id, automaticWeekly: z.boolean(), lastWeek: day.nullable(), updatedAt: stamp }).strict();
 export interface ReportData { subjects: Subject[]; concepts: Concept[]; attempts: Attempt[]; events: EducationalEvent[]; units: DidacticUnit[]; curriculum: CurriculumItem[]; intervention_reviews: InterventionReview[]; learning_reports: LearningReport[]; report_preferences: ReportPreference[]; }
@@ -64,10 +64,11 @@ export function makeReport(value: ReportInput, d: ReportData, now = new Date(), 
   if (input.supersedesId && (!previous || previous.subjectId !== subject.id || previous.kind !== input.kind || d.learning_reports.some(r => r.supersedesId === previous.id))) throw new Error('Solo puedes actualizar la última versión de un informe de esta asignatura y tipo.');
   const periodStartAt = boundary(input.startsOn), asOf = new Date(Math.min(now.getTime(), Date.parse(boundary(input.endsOn, true)))).toISOString();
   const beforeTime = new Date(Date.parse(periodStartAt) - 1);
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const grouped = new Map<string, Attempt[]>();
   for (const attempt of d.attempts) if (attempt.conceptId) { const group = grouped.get(attempt.conceptId) ?? []; group.push(attempt); grouped.set(attempt.conceptId, group); }
   const concepts = owned.filter(c => scope.includes(c.id)).map(concept => {
-    const history = grouped.get(concept.id) ?? [], summary = conceptSummary(concept, estimate(concept.id, history, beforeTime), estimate(concept.id, history, new Date(asOf)));
+    const history = grouped.get(concept.id) ?? [], summary = conceptSummary(concept, estimate(concept.id, history, beforeTime, timezone), estimate(concept.id, history, new Date(asOf), timezone));
     summary.prerequisites = concept.prerequisiteIds.map(id => ({ id, name: owned.find(c => c.id === id)!.name }));
     return summary;
   });
@@ -79,9 +80,8 @@ export function makeReport(value: ReportInput, d: ReportData, now = new Date(), 
     return { reviewId: review.id, interventionId: review.interventionId, whatHelped: review.whatHelped, nextStep: review.nextStep };
   });
   const activity = input.kind === 'weekly' ? d.events.filter(e => e.subjectId === subject.id && reportActivity(e) && e.createdAt >= periodStartAt && e.createdAt <= asOf) : [];
-  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const title = input.kind === 'weekly' ? `Mi semana: ${input.startsOn} a ${input.endsOn}` : input.kind === 'unit' ? `Fin de unidad: ${unit!.title}` : `Mi transición a ${input.targetCourse}`;
-  return reportRow.parse({ id: randomUUID(), subjectId: subject.id, kind: input.kind, title, subject: { name: subject.name, course: subject.course, level: subject.level }, unit: unit ? { id: unit.id, title: unit.title, curriculum: d.curriculum.filter(c => unit.curriculumIds.includes(c.id)).map(({ id, code, title, kind }) => ({ id, code, title, kind })) } : null, targetCourse: input.targetCourse, startsOn: input.startsOn, endsOn: input.endsOn, periodStartAt, asOf, timezone, concepts, attemptIds: attempts.map(a => a.id), activityEventIds: activity.map(e => e.id), stats: reportStats(attempts, timezone, activity), help, reflection: input.reflection, origin, supersedesId: previous?.id ?? null, revision: (previous?.revision ?? 0) + 1, engineVersion: 'reports-1', createdAt: now.toISOString() });
+  return reportRow.parse({ id: randomUUID(), subjectId: subject.id, kind: input.kind, title, subject: { name: subject.name, course: subject.course, level: subject.level }, unit: unit ? { id: unit.id, title: unit.title, curriculum: d.curriculum.filter(c => unit.curriculumIds.includes(c.id)).map(({ id, code, title, kind }) => ({ id, code, title, kind })) } : null, targetCourse: input.targetCourse, startsOn: input.startsOn, endsOn: input.endsOn, periodStartAt, asOf, timezone, concepts, attemptIds: attempts.map(a => a.id), activityEventIds: activity.map(e => e.id), stats: reportStats(attempts, timezone, activity), help, reflection: input.reflection, origin, supersedesId: previous?.id ?? null, revision: (previous?.revision ?? 0) + 1, engineVersion: 'reports-2', createdAt: now.toISOString() });
 }
 
 export function validateReports(d: ReportData) {
@@ -105,7 +105,9 @@ export function validateReports(d: ReportData) {
         if (new Set(state.evidenceIds).size !== state.evidenceIds.length || supporting.some(a => !a || a.subjectId !== r.subjectId || a.conceptId !== c.conceptId || a.source !== 'verified' || a.createdAt > cutoff.toISOString())) throw new Error('Faltan evidencias comprobadas del informe.');
         // Reports preserve the evidence available when created; later historical imports do not rewrite them.
         const selected = (supporting as Attempt[]).slice().sort((a, b) => positions.get(a.id)! - positions.get(b.id)!);
-        if (!isDeepStrictEqual(estimate(c.conceptId, selected, cutoff), state)) throw new Error('La estimación del informe no coincide con sus ejercicios de apoyo.');
+        // Version 1 used UTC days; preserve those immutable historical estimates.
+        const timezone = r.engineVersion === 'reports-1' ? 'UTC' : r.timezone;
+        if (!isDeepStrictEqual(estimate(c.conceptId, selected, cutoff, timezone), state)) throw new Error('La estimación del informe no coincide con sus ejercicios de apoyo.');
       }
       const expected = conceptSummary(concept, c.before, c.after);
       if (c.change !== expected.change || !isDeepStrictEqual(c.recommendation, expected.recommendation)) throw new Error('La recomendación del informe no corresponde a las evidencias.');

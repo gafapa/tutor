@@ -37,7 +37,7 @@ export function lmsHash(value: unknown) {
   const stable = (v: unknown): unknown => Array.isArray(v) ? v.map(stable) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).filter(([, value]) => value !== undefined).sort(([a], [b]) => a.localeCompare(b)).map(([key, value]) => [key, stable(value)])) : v;
   return createHash('sha256').update(JSON.stringify(stable(value))).digest('hex');
 }
-export function moodlePlainText(value: string): string {
+export function moodlePlainText(value: string, includeResponses = false): string {
   if (value.length > 2000000) throw new Error('El contenido de Moodle supera el límite de texto.');
   const blocks = new Set(['p', 'div', 'section', 'article', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'pre', 'tr', 'blockquote', 'ul', 'ol']);
   const blocked = new Set(['script', 'style', 'iframe', 'object', 'noscript']);
@@ -45,7 +45,14 @@ export function moodlePlainText(value: string): string {
   const parser = new Parser({
     onopentag(name, attributes) {
       if (skip) { skip++; return; }
+      if (includeResponses && (attributes.hidden !== undefined || attributes['aria-hidden'] === 'true')) { skip = 1; return; }
       if (blocked.has(name)) { skip = 1; return; }
+      if (includeResponses && name === 'input') {
+        const type = (attributes.type ?? 'text').toLowerCase();
+        if (['radio', 'checkbox'].includes(type)) { if (attributes.checked !== undefined) parts.push('[Marcada] '); }
+        else if (!['hidden', 'password', 'file', 'submit', 'reset', 'button', 'image'].includes(type) && attributes.value) parts.push(`[Respuesta: ${attributes.value}]`);
+      }
+      if (includeResponses && name === 'option' && attributes.selected !== undefined) parts.push('[Seleccionada] ');
       if (blocks.has(name) || name === 'br') parts.push('\n');
       else if (name === 'li') parts.push('\n• ');
       else if (name === 'td' || name === 'th') parts.push('\t');

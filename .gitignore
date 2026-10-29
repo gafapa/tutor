@@ -9,9 +9,11 @@ tmp/
 .env*
 !.env.example
 
-# Datos privados del alumno, credenciales y claves locales
+# Private learner data, credentials and local keys
+Data/
 *.tutor
 vault-key.bin
+portable-key.bin
 *.sqlite
 *.sqlite3
 *.db
@@ -22,7 +24,7 @@ vault-key.bin
 *.p12
 *.pfx
 
-# Modelos descargados para uso local
+# Models downloaded for local use
 *.gguf
 *.onnx
 *.traineddata

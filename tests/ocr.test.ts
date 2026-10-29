@@ -70,7 +70,7 @@ test('borrar imagen elimina original y revisiones, conserva texto y no independi
 });
 test('copias OCR cifradas sobreviven a restauración y reinicio; borrar asignatura limpia sus imágenes', async () => {
   const { store, subject, path, key } = await opened(); const saved = store.commitCapture(capture(subject.id), input()); const backup = encodeBackup(store.exportData(), 'copia OCR privada'); store.erase(); store.importData(decodeBackup(backup, 'copia OCR privada')); store.close();
-  const reopened = await Store.open(path, key, wasm); try { assert.equal(reopened.captureData(saved.captureId).reviews.length, 1); assert.equal(JSON.parse(reopened.exportData()).version, 12); reopened.deleteSubject(subject.id); assert.equal(reopened.snapshot().captures.length, 0); assert.equal(reopened.snapshot().captureReviews.length, 0); assert.doesNotThrow(() => reopened.importData(reopened.exportData())); } finally { reopened.close(); }
+  const reopened = await Store.open(path, key, wasm); try { assert.equal(reopened.captureData(saved.captureId).reviews.length, 1); assert.equal(JSON.parse(reopened.exportData()).version, 18); reopened.deleteSubject(subject.id); assert.equal(reopened.snapshot().captures.length, 0); assert.equal(reopened.snapshot().captureReviews.length, 0); assert.doesNotThrow(() => reopened.importData(reopened.exportData())); } finally { reopened.close(); }
 });
 test('restauración rechaza imagen alterada, fuentes cruzadas y notas inventadas sin tocar el historial', async () => {
   const { store, subject } = await opened();
@@ -79,7 +79,7 @@ test('restauración rechaza imagen alterada, fuentes cruzadas y notas inventadas
   } finally { store.close(); }
 });
 test('copias versión 11 incorporan tablas OCR vacías sin inferir trabajos', async () => {
-  const { store, subject } = await opened(); try { const legacy = JSON.parse(store.exportData()); legacy.version = 11; delete legacy.tables.captures; delete legacy.tables.capture_reviews; store.importData(JSON.stringify(legacy)); assert.equal(store.snapshot().subjects[0].id, subject.id); assert.equal(store.snapshot().captures.length, 0); assert.equal(store.snapshot().captureReviews.length, 0); assert.equal(store.snapshot().attempts.length, 0); assert.equal(JSON.parse(store.exportData()).version, 12); } finally { store.close(); }
+  const { store, subject } = await opened(); try { const legacy = JSON.parse(store.exportData()); legacy.version = 11; delete legacy.tables.captures; delete legacy.tables.capture_reviews; store.importData(JSON.stringify(legacy)); assert.equal(store.snapshot().subjects[0].id, subject.id); assert.equal(store.snapshot().captures.length, 0); assert.equal(store.snapshot().captureReviews.length, 0); assert.equal(store.snapshot().attempts.length, 0); assert.equal(JSON.parse(store.exportData()).version, 18); } finally { store.close(); }
 });
 test('lector de archivos OCR limita bytes antes de reservar una imagen grande', async () => {
   await mkdir(root, { recursive: true }); const path = join(root, 'bounded.bin'); await writeFile(path, Buffer.alloc(1025)); await assert.rejects(() => readLocalFile(path, 1024), /límite/); assert.equal((await readLocalFile(path, 1025)).length, 1025);
@@ -87,7 +87,7 @@ test('lector de archivos OCR limita bytes antes de reservar una imagen grande', 
 test('base versión 11 migra cifrada sin modificar asignaturas ni inventar capturas', async () => {
   const { store, subject, path, key } = await opened(); store.close();
   const sql = await initSqlJs({ locateFile: () => wasm }), db = new sql.Database(readEncrypted(path, key)); db.run('DROP TABLE capture_reviews; DROP TABLE captures; PRAGMA user_version = 11;'); writeEncrypted(path, db.export(), key); db.close();
-  const reopened = await Store.open(path, key, wasm); try { assert.equal(reopened.snapshot().subjects[0].id, subject.id); assert.equal(reopened.snapshot().captures.length, 0); assert.equal(reopened.snapshot().captureReviews.length, 0); assert.equal(JSON.parse(reopened.exportData()).version, 12); assert.doesNotThrow(() => reopened.importData(reopened.exportData())); } finally { reopened.close(); }
+  const reopened = await Store.open(path, key, wasm); try { assert.equal(reopened.snapshot().subjects[0].id, subject.id); assert.equal(reopened.snapshot().captures.length, 0); assert.equal(reopened.snapshot().captureReviews.length, 0); assert.equal(JSON.parse(reopened.exportData()).version, 18); assert.doesNotThrow(() => reopened.importData(reopened.exportData())); } finally { reopened.close(); }
 });
 test('guardia OCR bloquea fetch, HTTP, HTTPS, sockets y TLS en un proceso separado', async () => {
   const code = "const assert=require('node:assert/strict');require('./electron/ocr-network.ts').denyOcrNetwork();const h=require('node:http'),s=require('node:https'),n=require('node:net'),t=require('node:tls');for(const call of [()=>h.request('http://127.0.0.1'),()=>h.get('http://127.0.0.1'),()=>s.request('https://127.0.0.1'),()=>s.get('https://127.0.0.1'),()=>n.connect({port:1}),()=>n.createConnection({port:1}),()=>new n.Socket().connect({port:1}),()=>t.connect({port:1})])assert.throws(call,/no permite conexiones/);assert.rejects(()=>fetch('http://127.0.0.1'),/no permite conexiones/).then(()=>console.log('9 rutas de red bloqueadas'));";

@@ -1,0 +1,18 @@
+:root { color-scheme: light; font-family: 'Segoe UI', sans-serif; color: #303c35; background: #f7f8f4; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { max-width: 580px; padding: 36px 38px; margin: auto; }
+.brand { display: flex; align-items: center; gap: 16px; font-weight: 650; font-size: 16px; margin: 0 0 32px; }
+.brand span { color: #58674f; font-size: 12px; font-weight: 400; border-left: 1px solid #d7dfd0; padding-left: 16px; }
+h1 { font-size: 30px; font-weight: 500; line-height: 1.2; letter-spacing: -.6px; margin: 0 0 14px; }
+p { font-size: 14px; line-height: 1.65; }
+#description { color: #586354; margin: 0 0 22px; }
+label { display: block; font-size: 13px; font-weight: 600; margin: 16px 0 8px; }
+input { width: 100%; border: 1px solid #b6c2ae; border-radius: 7px; padding: 11px 12px; background: #fff; color: #303c35; font: inherit; }
+.hint { color: #586354; font-size: 12px; margin: 7px 0 0; }
+button { width: 100%; padding: 13px 18px; border: 1px solid #476739; border-radius: 7px; color: #fff; background: #476739; font: 600 14px 'Segoe UI', sans-serif; cursor: pointer; }
+button:disabled { opacity: .65; cursor: wait; }
+:focus-visible { outline: 3px solid #789562; outline-offset: 3px; }
+#error { color: #993c31; font-size: 13px; margin: 12px 0; min-height: 21px; }
+.footnote { color: #586354; border-top: 1px solid #d7dfd0; padding-top: 18px; margin-top: 23px; font-size: 12px; }
+[hidden] { display: none !important; }

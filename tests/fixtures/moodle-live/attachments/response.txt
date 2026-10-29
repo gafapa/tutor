@@ -1,0 +1,6 @@
+DATOS SINTÉTICOS PARA PRUEBAS DE TUTOR LOCAL
+
+Problema: repartir 3/4 de litro entre tres recipientes iguales.
+Procedimiento: (3/4) / 3 = 3/12 = 1/4 de litro por recipiente.
+Comprobación: 3 * (1/4) = 3/4 de litro.
+Reflexión: dividir entre tres no equivale a restar tres al denominador.

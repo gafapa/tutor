@@ -1,0 +1,27 @@
+TEMA 1. Bits, unidades y representación binaria
+
+Un bit representa uno de dos valores, cero o uno. Con n bits existen 2 elevado a n combinaciones distintas, contando también la combinación formada solo por ceros. Un byte contiene ocho bits y permite representar 256 patrones, de 0 a 255 si se interpretan como enteros sin signo. Una misma secuencia puede representar números, texto u otros datos según la codificación utilizada: los bits por sí solos no explican su significado.
+El sistema binario es posicional. En un octeto, los pesos de izquierda a derecha son 128, 64, 32, 16, 8, 4, 2 y 1. Para pasar a decimal suma los pesos donde hay un uno. Para convertir de decimal a binario selecciona los pesos mayores que quepan en el resto o divide repetidamente entre dos y lee los restos en orden inverso. Escribe ocho posiciones cuando representes un octeto IPv4: los ceros iniciales ayudan a reconocer límites.
+No confundas bits con bytes ni velocidad con cantidad. En este curso, 1 Mb/s significa un millón de bits por segundo y 1 MB un millón de bytes; MiB significa 1.048.576 bytes. Para estimar una transferencia ideal, transforma el tamaño a bits y divide entre la velocidad en bits por segundo. El tiempo real será mayor cuando existan cabeceras, retransmisiones, contención o límites del servidor.
+La operación AND produce uno solo si ambos operandos son uno; OR lo produce si al menos uno lo es. Una máscara de red usa AND para conservar los bits de prefijo y poner a cero los de host. Practicar estas operaciones antes de subnetting permite entender el procedimiento y detectar errores que una calculadora podría ocultar.
+
+EJEMPLO RESUELTO
+Convierte 172 a binario y estima el tiempo ideal de transferir 20 MB a 40 Mb/s.
+172 = 128 + 32 + 8 + 4, por tanto 10101100. Los 20 MB son 160 millones de bits; 160/40 = 4 segundos ideales. No confundas 40 Mb/s con 40 MB/s: hay un factor de ocho.
+
+PRÁCTICA
+1. Convierte 10110110 a decimal mostrando los pesos.
+2. Representa 13 y 200 como octetos binarios.
+3. Calcula cuántos patrones hay con seis bits.
+4. Calcula AND bit a bit de 11001010 y 11110000.
+5. Corrige: ocho bits permiten representar de 1 a 256 sin incluir cero.
+6. Explica por qué 100 Mb/s no equivale a 100 MB/s.
+7. Distingue 1 MB y 1 MiB con sus cantidades de bytes.
+8. Detecta el error en la conversión 10000001 = 129 + 1.
+9. Estima el tiempo ideal para 75 MB a 50 Mb/s.
+10. Estima los MB ideales transferibles en 30 segundos a 80 Mb/s.
+11. Propón dos motivos por los que una descarga tarda más que el cálculo ideal.
+12. Diseña una tabla de potencias de dos de 2⁰ a 2¹⁰ y explica su utilidad.
+
+REVISIÓN
+Explica el método, comprueba unidades y registra una duda.

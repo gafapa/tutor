@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { BACKUP_TABLE_LIMITS } from './backup-limits.js';
 import { validDay } from '../shared/calendar.js';
 import { EXERCISES } from './learning.js';
 import { nextDiagnosticQuestion } from './planning.js';
@@ -14,6 +15,7 @@ import { analysisRow, observationReviewRow, interventionRow, interventionRespons
 import {relationRow,relationReviewRow,projectRow,projectVersionRow,projectWorkRow,projectReviewRow,validateConnections} from './connections.js';
 import { MATERIAL_KINDS } from '../shared/materials.js';
 import { captureRow, captureReviewRow, captureSource, validateCaptureTables } from './ocr-validation.js';
+import { portfolioTaskSourceRow, portfolioTaskHash } from './portfolio-tasks.js';
 
 export const id = z.uuid();
 const text = (max: number) => z.string().max(max);
@@ -34,7 +36,8 @@ const event = z.object({ id, subjectId: id.optional(), type: text(80), createdAt
 const settings = z.object({ id: z.literal('profile'), name: text(80), dailyMinutes: z.number().int().min(5).max(120), largeText: z.boolean(), highContrast: z.boolean() });
 export const selfRatings = z.array(z.object({ conceptId: id, rating: z.enum(['unsure', 'learning', 'confident']) })).max(12);
 export const taskInput = z.object({ subjectId: id, title, notes: text(4000), dueDate: z.string().refine(validDay, 'La fecha no es válida.').nullable(), conceptIds: z.array(id).max(30).refine(ids => new Set(ids).size === ids.length, 'Hay conceptos repetidos.'), estimatedMinutes: z.number().int().min(5).max(120), unitId: id.nullable().default(null), curriculumIds: z.array(id).max(100).default([]) });
-const task = taskInput.extend({ id, status: z.enum(['pending', 'completed']), createdAt: timestamp, completedAt: timestamp.nullable(), lms: lmsTaskSourceRow.optional() });
+export const portfolioTaskInput = taskInput.pick({ title: true, notes: true, dueDate: true, estimatedMinutes: true }).extend({ portfolioId: id }).strict();
+const task = taskInput.extend({ id, status: z.enum(['pending', 'completed']), createdAt: timestamp, completedAt: timestamp.nullable(), lms: lmsTaskSourceRow.optional(), portfolioSource: portfolioTaskSourceRow.optional() }).refine(row => !(row.lms && row.portfolioSource), 'Una tarea personal no puede controlar una entrega de Moodle.');
 const diagnostic = z.object({
   id, subjectId: id, conceptIds: z.array(id).min(1).max(12), selfRatings,
   responses: z.array(z.object({ conceptId: id, exerciseId: text(150), attemptId: id })).max(24),
@@ -47,8 +50,8 @@ import { reportRow, reportPreferenceRow, validateReports } from './reports.js';
 import { goalRow, goalReviewRow, alertReviewRow, validateGoals } from './goals.js';
 
 export const backupSchema = z.object({
-  format: z.literal('tutor-local'), version: z.literal(12), exportedAt: timestamp,
-  tables: z.object({ captures: z.array(captureRow).max(200), capture_reviews: z.array(captureReviewRow).max(2000), subjects: z.array(subject).max(200), concepts: z.array(concept).max(10000), materials: z.array(material).max(2000), attempts: z.array(attempt).max(100000), messages: z.array(message).max(100000), events: z.array(event).max(200000), settings: z.array(settings).max(1), diagnostics: z.array(diagnostic).max(10000), tasks: z.array(task).max(10000), curriculum: z.array(curriculumRow).max(10000), units: z.array(unitRow).max(10000), flashcards: z.array(cardRow).max(10000), card_revisions: z.array(cardRevisionRow).max(100000), card_reviews: z.array(reviewRow).max(200000), portfolio: z.array(portfolioRow).max(10000), study_sessions: z.array(studySessionRow).max(10000), mock_exams: z.array(mockExamRow).max(10000), rubrics: z.array(rubricRow).max(10000), rubric_versions: z.array(rubricVersionRow).max(100000), rubric_submissions: z.array(submissionRow).max(100000), rubric_reviews: z.array(rubricReviewRow).max(200000), lms_connections: z.array(lmsConnectionRow).max(200), lms_items: z.array(lmsItemRow).max(50000), lms_versions: z.array(lmsVersionRow).max(200000), lms_runs: z.array(lmsRunRow).max(100000), learning_analyses: z.array(analysisRow).max(100000), observation_reviews: z.array(observationReviewRow).max(200000), interventions: z.array(interventionRow).max(100000), intervention_responses: z.array(interventionResponseRow).max(300000), intervention_reviews: z.array(interventionReviewRow).max(200000),concept_relations:z.array(relationRow).max(10000),relation_reviews:z.array(relationReviewRow).max(100000),interdisciplinary_projects:z.array(projectRow).max(2000),project_versions:z.array(projectVersionRow).max(20000),project_works:z.array(projectWorkRow).max(100000),project_activity_reviews:z.array(projectReviewRow).max(100000),learning_reports:z.array(reportRow).max(20000),report_preferences:z.array(reportPreferenceRow).max(200),personal_goals:z.array(goalRow).max(10000),goal_reviews:z.array(goalReviewRow).max(100000),alert_reviews:z.array(alertReviewRow).max(100000) })
+  format: z.literal('tutor-local'), version: z.literal(18), exportedAt: timestamp,
+  tables: z.object({ captures: z.array(captureRow).max(BACKUP_TABLE_LIMITS.captures), capture_reviews: z.array(captureReviewRow).max(BACKUP_TABLE_LIMITS.capture_reviews), subjects: z.array(subject).max(BACKUP_TABLE_LIMITS.subjects), concepts: z.array(concept).max(BACKUP_TABLE_LIMITS.concepts), materials: z.array(material).max(BACKUP_TABLE_LIMITS.materials), attempts: z.array(attempt).max(BACKUP_TABLE_LIMITS.attempts), messages: z.array(message).max(BACKUP_TABLE_LIMITS.messages), events: z.array(event).max(BACKUP_TABLE_LIMITS.events), settings: z.array(settings).max(BACKUP_TABLE_LIMITS.settings), diagnostics: z.array(diagnostic).max(BACKUP_TABLE_LIMITS.diagnostics), tasks: z.array(task).max(BACKUP_TABLE_LIMITS.tasks), curriculum: z.array(curriculumRow).max(BACKUP_TABLE_LIMITS.curriculum), units: z.array(unitRow).max(BACKUP_TABLE_LIMITS.units), flashcards: z.array(cardRow).max(BACKUP_TABLE_LIMITS.flashcards), card_revisions: z.array(cardRevisionRow).max(BACKUP_TABLE_LIMITS.card_revisions), card_reviews: z.array(reviewRow).max(BACKUP_TABLE_LIMITS.card_reviews), portfolio: z.array(portfolioRow).max(BACKUP_TABLE_LIMITS.portfolio), study_sessions: z.array(studySessionRow).max(BACKUP_TABLE_LIMITS.study_sessions), mock_exams: z.array(mockExamRow).max(BACKUP_TABLE_LIMITS.mock_exams), rubrics: z.array(rubricRow).max(BACKUP_TABLE_LIMITS.rubrics), rubric_versions: z.array(rubricVersionRow).max(BACKUP_TABLE_LIMITS.rubric_versions), rubric_submissions: z.array(submissionRow).max(BACKUP_TABLE_LIMITS.rubric_submissions), rubric_reviews: z.array(rubricReviewRow).max(BACKUP_TABLE_LIMITS.rubric_reviews), lms_connections: z.array(lmsConnectionRow).max(BACKUP_TABLE_LIMITS.lms_connections), lms_items: z.array(lmsItemRow).max(BACKUP_TABLE_LIMITS.lms_items), lms_versions: z.array(lmsVersionRow).max(BACKUP_TABLE_LIMITS.lms_versions), lms_runs: z.array(lmsRunRow).max(BACKUP_TABLE_LIMITS.lms_runs), learning_analyses: z.array(analysisRow).max(BACKUP_TABLE_LIMITS.learning_analyses), observation_reviews: z.array(observationReviewRow).max(BACKUP_TABLE_LIMITS.observation_reviews), interventions: z.array(interventionRow).max(BACKUP_TABLE_LIMITS.interventions), intervention_responses: z.array(interventionResponseRow).max(BACKUP_TABLE_LIMITS.intervention_responses), intervention_reviews: z.array(interventionReviewRow).max(BACKUP_TABLE_LIMITS.intervention_reviews),concept_relations: z.array(relationRow).max(BACKUP_TABLE_LIMITS.concept_relations),relation_reviews: z.array(relationReviewRow).max(BACKUP_TABLE_LIMITS.relation_reviews),interdisciplinary_projects: z.array(projectRow).max(BACKUP_TABLE_LIMITS.interdisciplinary_projects),project_versions: z.array(projectVersionRow).max(BACKUP_TABLE_LIMITS.project_versions),project_works: z.array(projectWorkRow).max(BACKUP_TABLE_LIMITS.project_works),project_activity_reviews: z.array(projectReviewRow).max(BACKUP_TABLE_LIMITS.project_activity_reviews),learning_reports: z.array(reportRow).max(BACKUP_TABLE_LIMITS.learning_reports),report_preferences: z.array(reportPreferenceRow).max(BACKUP_TABLE_LIMITS.report_preferences),personal_goals: z.array(goalRow).max(BACKUP_TABLE_LIMITS.personal_goals),goal_reviews: z.array(goalReviewRow).max(BACKUP_TABLE_LIMITS.goal_reviews),alert_reviews: z.array(alertReviewRow).max(BACKUP_TABLE_LIMITS.alert_reviews) })
 });
 
 export function validateBackup(raw: string): string {
@@ -72,6 +75,12 @@ export function validateBackup(raw: string): string {
   if (input?.format === 'tutor-local' && input.version === 9 && input.tables) { input.version = 10; input.tables.personal_goals = []; input.tables.goal_reviews = []; input.tables.alert_reviews = []; }
   if (input?.format === 'tutor-local' && input.version === 10 && input.tables) input.version = 11;
   if (input?.format === 'tutor-local' && input.version === 11 && input.tables) { input.version = 12; input.tables.captures = []; input.tables.capture_reviews = []; }
+  if (input?.format === 'tutor-local' && input.version === 12 && input.tables) input.version = 13;
+  if (input?.format === 'tutor-local' && input.version === 13 && input.tables) input.version = 14;
+  if (input?.format === 'tutor-local' && input.version === 14 && input.tables) input.version = 15;
+  if (input?.format === 'tutor-local' && input.version === 15 && input.tables) input.version = 16;
+  if (input?.format === 'tutor-local' && input.version === 16 && input.tables) input.version = 17;
+  if (input?.format === 'tutor-local' && input.version === 17 && input.tables) input.version = 18;
   const backup = backupSchema.parse(input);
   validateCaptureTables(backup.tables);
   const subjects = new Set(backup.tables.subjects.map(s => s.id));
@@ -113,6 +122,10 @@ export function validateBackup(raw: string): string {
     if (message.evidenceIds?.some(id => attempts.get(id)?.subjectId !== message.subjectId)) throw new Error('La copia contiene evidencias del tutor vinculadas a otra asignatura.');
   }
   for (const task of backup.tables.tasks) {
+    if (task.portfolioSource?.entryId) {
+      const source = backup.tables.portfolio.find(entry => entry.id === task.portfolioSource!.entryId);
+      if (!source || source.subjectId !== task.subjectId || portfolioTaskHash(source) !== task.portfolioSource.hash) throw new Error('La tarea contiene un origen del portfolio incompatible.');
+    }
     if (task.conceptIds.some(conceptId => concepts.get(conceptId)?.subjectId !== task.subjectId)) throw new Error('La copia contiene una tarea vinculada a otra asignatura.');
     if ((task.status === 'completed') !== Boolean(task.completedAt)) throw new Error('La copia contiene una tarea con un estado incompatible.');
     if (task.unitId && units.get(task.unitId)?.subjectId !== task.subjectId) throw new Error('La copia contiene una tarea vinculada a otra unidad.');

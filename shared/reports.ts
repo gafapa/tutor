@@ -44,7 +44,7 @@ export interface LearningReport {
   origin: 'automatic' | 'manual';
   supersedesId: string | null;
   revision: number;
-  engineVersion: 'reports-1';
+  engineVersion: 'reports-1' | 'reports-2';
   createdAt: string;
 }
 export interface ReportPreference {

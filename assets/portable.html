@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; form-action 'none'; base-uri 'none'">
+  <title>Tutor Local · Portable</title>
+  <link rel="stylesheet" href="portable.css">
+  <script src="portable.js" defer></script>
+</head>
+<body>
+  <main>
+    <p class="brand">Tutor Local <span>Portable</span></p>
+    <h1 id="title">Tu espacio de aprendizaje.</h1>
+    <p id="description">Preparando tu carpeta portable…</p>
+    <form id="form" hidden>
+      <label for="password">Contraseña de la carpeta portable</label>
+      <input id="password" type="password" minlength="12" maxlength="256" required aria-describedby="hint" autocomplete="current-password">
+      <p id="hint" class="hint">Entre 12 y 256 caracteres. Es distinta de tu contraseña de Moodle.</p>
+      <div id="confirmation-row" hidden>
+        <label for="confirmation">Repite la contraseña</label>
+        <input id="confirmation" type="password" minlength="12" maxlength="256" autocomplete="new-password">
+      </div>
+      <p id="error" role="alert"></p>
+      <button id="submit" type="submit">Abrir mi espacio</button>
+    </form>
+    <p class="footnote">Mueve siempre la carpeta completa, con la aplicación cerrada. Conserva tu contraseña y una copia de seguridad: no podemos recuperar una contraseña olvidada.</p>
+  </main>
+</body>
+</html>

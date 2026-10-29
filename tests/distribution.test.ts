@@ -33,7 +33,7 @@ async function fixture() {
   };
   await save();
   const env = { ...process.env, GITHUB_SHA: sourceCommit, GITHUB_ACTIONS: 'true', GITHUB_REPOSITORY: 'gafapa/tutor', GITHUB_RUN_ID: '123', GH_TOKEN: 'synthetic-unused-token', GITHUB_EVENT_NAME: 'push', GITHUB_REF_NAME: `v${version}`, GITHUB_REF: `refs/tags/v${version}` };
-  const run = (script = prepare, overrides = {}) => spawnSync(process.execPath, [script], { cwd: directory, env: { ...env, ...overrides }, encoding: 'utf8' });
+  const run = (script = prepare, overrides = {}) => spawnSync(process.execPath, [script, ...(script === prepare ? ['--installer'] : [])], { cwd: directory, env: { ...env, ...overrides }, encoding: 'utf8' });
   return { directory, bytes, release, installed, save, run };
 }
 
@@ -45,6 +45,7 @@ test('la descarga conserva el ejecutable probado y excluye datos privados del co
   assert.deepEqual(await readFile(join(distribution, filename)), f.bytes);
   const text = await readFile(join(distribution, 'verification.json'), 'utf8'), manifest = JSON.parse(text);
   assert.equal(manifest.sourceCommit, sourceCommit);
+  assert.equal(manifest.sourceWorkingTreeDirty, false);
   assert.equal(manifest.cleanWindows, false);
   assert.equal(manifest.interactiveWizard, false);
   assert.equal(manifest.codeSigned, false);
@@ -82,4 +83,34 @@ test('la publicación vuelve a comprobar el ejecutable descargado del artefacto'
   await writeFile(join(f.directory, 'release/distribution', filename), tampered);
   const result = f.run(publish);
   assert.notEqual(result.status, 0); assert.match(result.stderr, /artefacto descargado no coincide/);
+});
+
+async function portableFixture() {
+  const f = await fixture(), portableName = `Tutor-Local-${version}-Portable.zip`, sha256 = createHash('sha256').update(f.bytes).digest('hex');
+  const portable = { path: `release/${portableName}`, bytes: f.bytes.length, sha256 };
+  const proof = { version, portable, zipIntegrity: true, extractedZipExecuted: true, passwordSetupConfirmation: true, wrongPasswordPreservesData: true, movedFolderReopened: true, portableDataPaths: true, noWindowsKey: true, actualBundledSemanticModelBeforeAndAfterMove: true };
+  Object.assign(f.release, { portable, checks: ['desktop', 'portable'], packagedChecks: 2 }); await f.save();
+  await writeFile(join(f.directory, 'release', portableName), f.bytes);
+  await writeFile(join(f.directory, 'release', portableName + '.sha256'), `${sha256}  ${portableName}\n`);
+  const saveProof = () => writeFile(join(f.directory, 'test-results', `portable-${version}-verification.json`), JSON.stringify(proof)); await saveProof();
+  const run = () => f.run(resolve('scripts/prepare-portable-distribution.mjs'));
+  return { ...f, portableName, proof, saveProof, run };
+}
+
+test('portable distribution copies only the tested ZIP and sanitized qualification data', async () => {
+  const f = await portableFixture(), result = f.run(); assert.equal(result.status, 0, result.stderr);
+  const directory = join(f.directory, 'release/distribution');
+  assert.deepEqual((await readdir(directory)).sort(), [f.portableName, f.portableName + '.sha256', 'verification.json', 'release-notes.md'].sort());
+  assert.deepEqual(await readFile(join(directory, f.portableName)), f.bytes);
+  const text = await readFile(join(directory, 'verification.json'), 'utf8'), manifest = JSON.parse(text);
+  assert.equal(manifest.portable.filename, f.portableName); assert.equal(manifest.movedFolderReopened, true); assert.equal(manifest.passwordEncryptedData, true); assert.equal(manifest.differentWindowsAccountOrComputer, false); assert.equal(manifest.sourceWorkingTreeDirty, false); assert.equal(text.includes('PRIVATE_'), false);
+  const tampered = Buffer.from(f.bytes); tampered[0] ^= 1; await writeFile(join(directory, f.portableName), tampered);
+  const published = spawnSync(process.execPath, [publish], { cwd: f.directory, env: { ...process.env, GITHUB_SHA: sourceCommit, GITHUB_REPOSITORY: 'gafapa/tutor', GH_TOKEN: 'synthetic-unused-token', GITHUB_EVENT_NAME: 'push', GITHUB_REF_NAME: `v${version}`, GITHUB_REF: `refs/tags/v${version}` }, encoding: 'utf8' });
+  assert.notEqual(published.status, 0); assert.match(published.stderr, /artefacto descargado no coincide/);
+});
+
+test('portable distribution rejects changed archives and missing relocation evidence', async () => {
+  const f = await portableFixture(); f.proof.movedFolderReopened = false; await f.saveProof(); assert.notEqual(f.run().status, 0);
+  f.proof.movedFolderReopened = true; await f.saveProof(); await writeFile(join(f.directory, 'release', f.portableName), Buffer.from('modified ZIP'));
+  assert.notEqual(f.run().status, 0); await assert.rejects(access(join(f.directory, 'release/distribution')));
 });

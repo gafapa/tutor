@@ -1,3 +1,4 @@
+import type { PortfolioEntry } from './education.js';
 export type LmsProvider = 'moodle';
 export type LmsScope = 'activities' | 'resources' | 'submissions' | 'grades';
 export type LmsScopeState = 'ok' | 'partial' | 'unavailable';
@@ -11,15 +12,33 @@ export interface LmsConnection {
 export interface LmsSubmission {
   status: string; text: string; group: boolean;
   attempt: number; createdAt: string | null; updatedAt: string | null;
+  files?: LmsSubmissionFile[];
+}
+export interface LmsSubmissionFile {
+  filename: string; filepath: string; size: number; url: string; modifiedAt: string | null;
+  remoteKey?: string;
+}
+export interface LmsOriginalFile { hash: string; filename: string; size: number; base64?: string; }
+export interface LmsQuizAttempt {
+  id: number; number: number; state: 'inprogress' | 'overdue' | 'finished' | 'abandoned';
+  startedAt: string | null; finishedAt: string | null;
+  reviewState: 'available' | 'cached' | 'restricted' | 'unavailable' | 'not-finished';
+  reviewText: string; points: number | null;
+}
+export interface MoodleComparisonCopyInput {
+  itemId: string; revision: number; firstAttemptId: string; secondAttemptId: string;
+  whatChanged: string; whatChecked: string; nextStep: string;
 }
 export interface LmsActivityData {
   kind: 'activity'; moduleId: number; assignmentId: number | null; module: string;
   title: string; url: string; instructions: string; dueAt: string | null;
   submission?: LmsSubmission | null; submissionFeedback?: string;
+  quizId?: number; quizAttempts?: LmsQuizAttempt[];
+  previousSubmissions?: { submission: LmsSubmission; feedback: string }[];
 }
 export interface LmsResourceData {
-  kind: 'resource'; moduleId: number; title: string; filename: string; url: string;
-  source: 'file' | 'page' | 'link'; format: string; size: number;
+  kind: 'resource'; moduleId: number | null; title: string; filename: string; url: string;
+  source: 'file' | 'page' | 'link' | 'section' | 'submission'; format: string; size: number;
   modifiedAt: string | null; contentHash: string | null;
 }
 export interface LmsGradeData {
@@ -32,6 +51,7 @@ export interface LmsLocalLinks {
   taskId: string | null; materialIds: string[]; suppressed: boolean;
   resourceState: 'ready' | 'cached' | 'pending' | 'unsupported' | 'unavailable';
   resourceMessage: string; etag: string | null;
+  originals?: LmsOriginalFile[];
 }
 export interface LmsItem {
   id: string; subjectId: string; connectionId: string; remoteKey: string;
@@ -57,13 +77,22 @@ export interface LmsDiscovery {
   canReadGrades: boolean; canReadSubmissions: boolean;
 }
 export interface LmsSnapshot { lmsConnections: LmsConnection[]; lmsItems: LmsItem[]; lmsVersions: LmsItemVersion[]; lmsRuns: LmsSyncRun[]; }
+export interface LmsCourseSelection { courseId: number; subjectId?: string; subjectName?: string; }
+export interface LmsCourseSetup { discoveryId: string; courses: LmsCourseSelection[]; autoMinutes: LmsConnection['autoMinutes']; }
 export interface LmsAPI {
   discoverMoodle(input: { siteUrl: string; token?: string; username?: string; password?: string }): Promise<LmsDiscovery>;
   connectMoodle(input: { subjectId: string; discoveryId: string; courseId: number; autoMinutes: LmsConnection['autoMinutes'] }): Promise<LmsConnection>;
+  connectMoodleCourses(input: LmsCourseSetup): Promise<LmsConnection[]>;
+  forgetMoodleDiscovery(discoveryId: string): Promise<void>;
   syncMoodle(connectionId: string): Promise<LmsSyncRun>;
   cancelMoodleSync(connectionId: string): Promise<void>;
   configureMoodle(input: { connectionId: string; autoMinutes: LmsConnection['autoMinutes']; enabled: boolean }): Promise<void>;
   disconnectMoodle(connectionId: string): Promise<void>;
   clearMoodleData(connectionId: string): Promise<void>;
   openLmsSource(itemId: string): Promise<void>;
+  copyMoodleSubmission(input: { itemId: string; revision: number; reflection: string; attempt?: number }): Promise<PortfolioEntry>;
+  copyMoodleQuizReview(input: { itemId: string; revision: number; attemptId: number; reflection: string }): Promise<PortfolioEntry>;
+  copyMoodleComparison(input: MoodleComparisonCopyInput): Promise<PortfolioEntry>;
+  previewMoodleFile(input: { itemId: string; hash: string }): Promise<{ filename: string; text: string; pageCount: number }>;
+  exportMoodleFile(input: { itemId: string; hash: string }): Promise<boolean>;
 }

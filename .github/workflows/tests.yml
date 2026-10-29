@@ -1,4 +1,4 @@
-name: Pruebas
+name: Tests
 
 on:
   push:
@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   domain:
-    name: Dominio y compilación (${{ matrix.os }})
+    name: Domain and build (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:
@@ -35,18 +35,20 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-      - name: Comprobar que la etiqueta coincide con la versión
+      - name: Verify tag matches package version
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: node --input-type=module -e 'import fs from "node:fs"; if (process.env.RELEASE_TAG !== "v" + JSON.parse(fs.readFileSync("package.json", "utf8")).version) process.exit(1);'
-      - name: Instalar dependencias del lockfile
+      - name: Install locked dependencies
         run: npm ci --no-audit --fund=false
-      - name: Ejecutar todas las pruebas de dominio
+      - name: Audit dependency advisories
+        run: npm audit --audit-level=moderate
+      - name: Run all domain tests
         run: npm test 2>&1 | tee domain-tests.log
-      - name: Comprobar TypeScript y compilar
+      - name: Check TypeScript and build
         run: npm run build
-      - name: Guardar resultado de las pruebas
+      - name: Store test results
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -56,7 +58,7 @@ jobs:
           retention-days: 7
 
   windows:
-    name: App Windows, Moodle, IA y pruebas del instalador
+    name: Windows portable, Moodle and local AI checks
     needs: domain
     runs-on: windows-2025
     timeout-minutes: 90
@@ -73,9 +75,9 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-      - name: Instalar dependencias del lockfile
+      - name: Install locked dependencies
         run: npm ci --no-audit --fund=false
-      - name: Recuperar descargas verificables
+      - name: Restore verifiable downloads
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           key: runtimes-windows-x64-${{ hashFiles('electron/*-config.ts', 'scripts/prepare-*.mjs', 'package-lock.json') }}
@@ -90,36 +92,36 @@ jobs:
             .tools/moodle-test/mariadb.zip
             .tools/pdf-check/*.zip
             .tools/pdf-check/*.whl
-      - name: Instalar el ejecutable de Electron del lockfile
+      - name: Install the locked Electron executable
         run: node node_modules/electron/install.js
-      - name: Compilar la aplicación
+      - name: Build the application
         run: npm run build
-      - name: Preparar llama.cpp, OCR y búsqueda semántica
+      - name: Prepare llama.cpp, OCR and semantic search
         run: npm run prepare:runtime
-      - name: Preparar Moodle real con alumnos sintéticos
+      - name: Verify multi-course desktop workflow with synthetic REST responses
+        run: npm run test:moodle:courses
+      - name: Prepare real Moodle with synthetic learners
         run: node scripts/prepare-moodle-test.mjs
-      - name: Preparar comprobación de PDF
+      - name: Prepare PDF checks
         run: npm run prepare:pdf-check
-      - name: Descargar y comprobar Qwen con inferencia local real
+      - name: Download and verify Qwen with real local inference
         run: node scripts/test-ai.mjs
-      - name: Comprobar el conector contra Moodle real
+      - name: Verify connector against real Moodle
         run: npm run test:moodle
-      - name: Construir el instalador sin publicar una release
-        run: npm run dist -- --publish never
-      - name: Comprobar los 17 recorridos empaquetados y los PDF
+      - name: Build the portable ZIP without publishing
+        run: npm run dist
+      - name: Verify 25 packaged workflows, portable relocation and report PDFs
         run: npm run test:release
-      - name: Instalar, abrir y desinstalar la aplicación
-        run: node scripts/smoke-installer.mjs
-      - name: Preparar la descarga del instalador comprobado
+      - name: Prepare the verified portable download
         run: node scripts/prepare-distribution.mjs
-      - name: Guardar instalador, SHA-256 y comprobante
+      - name: Store portable ZIP, SHA-256 and verification receipt
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: instalador-windows
+          name: portable-windows
           path: release/distribution/*
           if-no-files-found: error
           retention-days: 30
-      - name: Guardar informes, registros y capturas sintéticas
+      - name: Store synthetic reports, logs and screenshots
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -134,7 +136,7 @@ jobs:
           retention-days: 7
 
   release:
-    name: Publicar instalador en GitHub Releases
+    name: Publish portable ZIP to GitHub Releases
     if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
     needs: [domain, windows]
     runs-on: ubuntu-24.04
@@ -150,9 +152,9 @@ jobs:
           node-version: '24'
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          name: instalador-windows
+          name: portable-windows
           path: release/distribution
-      - name: Verificar el artefacto y publicar la versión
+      - name: Verify artifact and publish release
         env:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/publish-release.mjs

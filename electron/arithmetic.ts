@@ -49,7 +49,21 @@ function calculate(node: Node): Rational {
 }
 function format(value: Rational) { return value.d === 1n ? value.n.toString() : `${value.n}/${value.d}`; }
 export function arithmeticValue(expression: string): string { return format(calculate(parse(expression))); }
+export function arithmeticGuide(expression: string): { expression: string; expected: string; hints: string[] }[] {
+  const steps: { expression: string; expected: string; hints: string[] }[] = [];
+  const visit = (node: Node) => {
+    if (node.type === 'number') return;
+    if (node.type === 'binary') { visit(node.left); visit(node.right); } else visit(node.child);
+    const rules: Record<string, string> = { '+': 'Suma las cantidades; si son fracciones, busca un denominador común.', '-': 'Resta respetando el orden y el signo de cada cantidad.', '*': 'Multiplica los factores; revisa el signo del resultado.', '/': 'Divide respetando el orden; no puedes dividir por cero.', '^': 'La potencia repite el producto de la base. Revisa el signo y el exponente.', '%': 'Un porcentaje equivale a dividir entre cien.' };
+    steps.push({ expression: display(node), expected: format(calculate(node)), hints: [rules[node.op] ?? 'Revisa el signo de la cantidad.', 'Usa los resultados de los pasos anteriores. Puedes responder con una fracción exacta; comprueba el resultado con una operación inversa.'] });
+  };
+  const root = parse(expression); visit(root);
+  return steps.length ? steps : [{ expression: display(root), expected: format(calculate(root)), hints: ['Identifica el valor numérico.', 'Puedes escribir una fracción equivalente.'] }];
+}
 export function sameArithmeticValue(answer: string, expected: string) { try { return arithmeticValue(answer) === arithmeticValue(expected); } catch { return false; } }
+export function isNumericResult(answer: string): boolean {
+  return answer.length <= 300 && /^[+-]?(?:\d+(?:[.,]\d+)?|\d+\s*\/\s*[+-]?\d+)$/.test(answer.trim());
+}
 export function arithmeticSteps(text: string): ArithmeticStep[] {
   const steps: ArithmeticStep[] = []; let offset = 0, line = 0;
   for (const full of text.split(/(?<=\n)/)) {

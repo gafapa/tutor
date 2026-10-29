@@ -4,10 +4,12 @@ import type { Attempt, Concept, Snapshot } from '../shared/types.js';
 import type { PortfolioEntry } from '../shared/education.js';
 import type { RubricSubmission } from '../shared/rubrics.js';
 import { SKILLS, type WorkContext, type WorkRef, type LearningAnalysis, type LearningObservation, type ObservationReview, type SkillProfile, type Intervention, type PracticeActivity, type InterventionResponse, type InterventionReview } from '../shared/pedagogy.js';
-import { arithmeticSteps, arithmeticValue, arithmeticVariants, sameArithmeticValue } from './arithmetic.js';
+import { arithmeticSteps, arithmeticValue, arithmeticVariants, sameArithmeticValue, isNumericResult } from './arithmetic.js';
 import { rubricFragments } from './rubrics.js';
 import { dayKey, addDays } from '../shared/calendar.js';
 import { EXERCISES, matchesBankAnswer } from './learning.js';
+import { guidanceTurnRow, replayGuidance } from './guided-practice.js';
+import { independentCheckOn } from '../shared/learning-cycle.js';
 export const SKILL_NAMES = { reading: 'Comprensión lectora', graphs: 'Interpretación de gráficas', 'problem-solving': 'Resolución de problemas', writing: 'Expresión escrita', calculation: 'Cálculo', logic: 'Pensamiento lógico' };
 export const ERROR_NAMES = { conceptual: 'Posible error conceptual', procedure: 'Posible error de procedimiento', calculation: 'Posible error de cálculo', reading: 'Posible error de comprensión', writing: 'Posible error de expresión' };
 export const PEDAGOGY_PROMPT_VERSION = 'pedagogy-1';
@@ -15,15 +17,15 @@ const id = z.uuid(), stamp = z.iso.datetime(), hash = z.string().regex(/^[a-f0-9
 const quote = z.object({ start: z.number().int().nonnegative(), end: z.number().int().positive(), text: z.string().min(1).max(20000) }).strict();
 const step = quote.extend({ expression: z.string().min(1).max(300), value: z.string().max(1500), claimed: z.string().max(2000), correct: z.boolean(), line: z.number().int().positive() });
 const skill = z.enum(SKILLS), error = z.enum(['conceptual', 'procedure', 'calculation', 'reading', 'writing']);
-export const workInput = z.object({ kind: z.enum(['attempt', 'submission']), id }).strict();
+export const workInput = z.object({ kind: z.enum(['attempt', 'submission', 'portfolio']), id }).strict();
 export const workRefRow = workInput.extend({ hash });
 export const observationInput = workInput.extend({ skill, signal: z.enum(['difficulty', 'strength']), error: error.nullable(), quote, description: z.string().trim().min(1).max(1500) });
 export const analysisRow = z.object({ id, subjectId: id, source: workRefRow, engine: z.enum(['arithmetic', 'local-ai', 'self']), model: z.object({ name: z.string().min(1).max(200), promptVersion: z.literal(PEDAGOGY_PROMPT_VERSION) }).nullable(), coverage: z.array(z.object({ start: z.number().int().nonnegative(), end: z.number().int().nonnegative() })).max(100), observations: z.array(z.object({ id, signal: z.enum(['difficulty','strength']), skill, error: error.nullable(), quotes: z.array(quote).min(1).max(3), description: z.string().max(1500), arithmetic: step.nullable() }).strict()).max(1000), steps: z.array(step).max(1000), createdAt: stamp }).strict();
 export const observationReviewInput = z.object({ analysisId: id, observationId: id, decision: z.enum(['accepted','rejected','forgotten']), reason: z.string().trim().min(1).max(2000), followUpResponseId: id.nullable().default(null) });
 export const observationReviewRow = observationReviewInput.extend({ id, subjectId: id, supersedesId: id.nullable(), createdAt: stamp }).strict();
 const activityRow = z.object({ id, kind: z.enum(['arithmetic','bank','open']), statement: z.string().min(1).max(10000), hint: z.string().max(2000), expression: z.string().max(300).nullable(), conceptId: id.nullable(), followUp: z.boolean(), expected: z.string().max(2000), feedback: z.string().max(10000), bankName: z.string().max(120).nullable(), bankIndex: z.number().int().nonnegative().nullable() }).strict();
-export const interventionInput = z.object({ analysisId: id, observationId: id, minutes: z.union([z.literal(10),z.literal(20),z.literal(30)]) });
-export const interventionRow = z.object({ id, subjectId: id, analysisId: id, observationId: id, skill, help: z.string().max(2000), explanation: z.string().max(2000), minutes: z.union([z.literal(10),z.literal(20),z.literal(30)]), activities: z.array(activityRow).length(3), followUpOn: z.string(), createdAt: stamp }).strict();
+export const interventionInput = z.object({ analysisId: id, observationId: id, minutes: z.union([z.literal(10),z.literal(20),z.literal(30)]), guided: z.boolean().optional() }).strict();
+export const interventionRow = z.object({ id, subjectId: id, analysisId: id, observationId: id, skill, help: z.string().max(2000), explanation: z.string().max(2000), minutes: z.union([z.literal(10),z.literal(20),z.literal(30)]), activities: z.array(activityRow).length(3), followUpOn: z.string(), createdAt: stamp, guidance: z.array(guidanceTurnRow).max(300).optional(), independent: z.literal(true).optional() }).strict();
 export type InterventionRecord = z.infer<typeof interventionRow>;
 export const interventionAnswerInput = z.object({ interventionId: id, activityId: id, answer: z.string().trim().min(1).max(20000), hints: z.number().int().min(0).max(50), durationSeconds: z.number().int().min(0).max(86400) });
 export const interventionResponseRow = interventionAnswerInput.extend({ id, subjectId: id, expected: z.string().max(2000), feedback: z.string().max(10000), outcome: z.enum(['correct','incorrect','ungraded']), createdAt: stamp }).strict();
@@ -31,16 +33,20 @@ export const interventionReviewInput = z.object({ interventionId: id, whatHelped
 export const interventionReviewRow = interventionReviewInput.extend({ id, subjectId: id, createdAt: stamp }).strict();
 export function workHash(text: string) { return createHash('sha256').update(text).digest('hex'); }
 export function workContext(ref: Pick<WorkRef, 'kind' | 'id'>, attempts: Attempt[], submissions: RubricSubmission[], portfolio: PortfolioEntry[]): WorkContext {
+  if (ref.kind === 'portfolio') {
+    const row = portfolio.find(entry => entry.id === ref.id); if (!row) throw new Error('No se encuentra el trabajo del portfolio.');
+    return { ref: { kind: ref.kind, id: ref.id, hash: workHash(row.content) }, subjectId: row.subjectId, question: row.moodlePracticeSource?.instructions ?? row.title, text: row.content, conceptIds: row.conceptIds, evidenceDay: row.moodlePracticeSource ? row.moodlePracticeSource.submittedAt ? dayKey(new Date(row.moodlePracticeSource.submittedAt)) : null : undefined, evidenceKey: row.moodlePracticeSource ? `moodle:${workHash(JSON.stringify([row.moodlePracticeSource.url, row.moodlePracticeSource.attempt]))}` : row.evidenceIds.length === 1 ? `attempt:${row.evidenceIds[0]}` : `portfolio:${row.id}`, createdAt: row.createdAt };
+  }
   if (ref.kind === 'attempt') {
     const row = attempts.find(a => a.id === ref.id); if (!row) throw new Error('No se encuentra el ejercicio original.');
     return { ref: { kind: ref.kind, id: ref.id, hash: workHash(row.answer) }, subjectId: row.subjectId, question: row.statement, text: row.answer, conceptIds: row.conceptId ? [row.conceptId] : [], evidenceKey: row.ocrSource ? `capture:${row.ocrSource.sourceHash}:${row.ocrSource.sourcePage}` : `attempt:${row.id}`, createdAt: row.createdAt };
   }
   const row = submissions.find(s => s.id === ref.id); if (!row) throw new Error('No se encuentra la entrega original.');
-  let evidenceKey = `submission:${row.id}`;
+  let evidenceKey = `submission:${row.id}`, evidenceDay: string | null | undefined;
   const attemptKey = (id: string) => { const source = attempts.find(a => a.id === id)?.ocrSource; return source ? `capture:${source.sourceHash}:${source.sourcePage}` : `attempt:${id}`; };
   if (row.source?.kind === 'attempt') evidenceKey = attemptKey(row.source.id);
-  if (row.source?.kind === 'portfolio') { const entry = portfolio.find(p => p.id === row.source!.id); if (entry?.evidenceIds.length === 1) evidenceKey = attemptKey(entry.evidenceIds[0]); }
-  return { ref: { kind: ref.kind, id: ref.id, hash: workHash(row.text) }, subjectId: row.subjectId, question: row.instructions, text: row.text, conceptIds: [], evidenceKey, createdAt: row.createdAt };
+  if (row.source?.kind === 'portfolio') { const entry = portfolio.find(p => p.id === row.source!.id); if(entry?.moodlePracticeSource)evidenceDay=entry.moodlePracticeSource.submittedAt?dayKey(new Date(entry.moodlePracticeSource.submittedAt)):null; if (entry?.moodlePracticeSource) evidenceKey = `moodle:${workHash(JSON.stringify([entry.moodlePracticeSource.url, entry.moodlePracticeSource.attempt]))}`; else if (entry?.evidenceIds.length === 1) evidenceKey = attemptKey(entry.evidenceIds[0]); }
+  return { ref: { kind: ref.kind, id: ref.id, hash: workHash(row.text) }, subjectId: row.subjectId, question: row.instructions, text: row.text, conceptIds: [], evidenceKey, evidenceDay, createdAt: row.createdAt };
 }
 export function checkQuote(q: { start: number; end: number; text: string }, text: string) {
   if (q.end <= q.start || q.end > text.length || text.slice(q.start, q.end) !== q.text) throw new Error('El fragmento no coincide con el trabajo original.');
@@ -78,7 +84,7 @@ export function skillProfiles(analyses: LearningAnalysis[], reviews: Observation
     }
     const negative = groups.filter(g=>g.some(i=>i.observation.signal==='difficulty')).length, positive = groups.filter(g=>g.some(i=>i.observation.signal==='strength')).length;
     const representatives=groups.map(group=>group.slice().sort((a,b)=>a.context.createdAt.localeCompare(b.context.createdAt)||a.analysis.createdAt.localeCompare(b.analysis.createdAt))[0]);
-    const subjectIds = [...new Set(representatives.map(a=>a.analysis.subjectId))], dayCount = new Set(representatives.map(a=>dayKey(new Date(a.context.createdAt)))).size;
+    const subjectIds = [...new Set(representatives.map(a=>a.analysis.subjectId))], dayCount = new Set(representatives.flatMap(a=>a.context.evidenceDay===null?[]:[a.context.evidenceDay??dayKey(new Date(a.context.createdAt))])).size;
     const consistent = negative === 0 || positive === 0, supported = groups.length>=3 && subjectIds.length>=2 && dayCount>=2 && consistent;
     const state: SkillProfile['state'] = !groups.length?'unseen':!consistent?'mixed':negative ? supported?'supported-hypothesis':'to-check':'positive';
     return { skill,state,confidence:supported?'medium':'low',analysisIds:[...new Set(accepted.map(i=>i.analysis.id))],observationIds:accepted.map(i=>i.observation.id),subjectIds,workCount:groups.length,dayCount,reason:!groups.length?'No hay observaciones aceptadas para esta habilidad.':!consistent?'Hay observaciones de dificultad y fortaleza. Revisa sus contextos antes de concluir.':negative ? supported?`Hipótesis apoyada por ${groups.length} trabajos de ${subjectIds.length} asignaturas en ${dayCount} días. No constituye un diagnóstico.`:'Es una hipótesis inicial. Faltan trabajos de otras asignaturas y días para contrastarla.':`Hay observaciones positivas en ${groups.length} trabajos. Esto no demuestra todavía un dominio general de la habilidad.` };
@@ -125,13 +131,13 @@ export function createIntervention(analysis:LearningAnalysis,observation:Learnin
   const time=new Date(Math.max(Date.now(),Date.parse(analysis.createdAt))).toISOString();
   return {id:randomUUID(),subjectId:analysis.subjectId,analysisId:analysis.id,observationId:observation.id,skill:observation.skill,help:HELP[observation.skill],explanation:`Se propone este refuerzo por el fragmento «${observation.quotes[0].text.slice(0,500)}». Comprueba la observación antes de utilizarlo.`,minutes,activities,createdAt:time,followUpOn:addDays(dayKey(new Date(time)),1)};
 }
-export function publicIntervention(row:InterventionRecord):Intervention{return {...row,activities:row.activities.map(({expected:_expected,feedback:_feedback,bankName:_name,bankIndex:_index,...activity})=>activity)};}
+export function publicIntervention(row:InterventionRecord):Intervention{const {guidance,...plan}=row;return {...plan,...(guidance?{guided:true}:{}),activities:row.activities.map(({expected:_expected,feedback:_feedback,bankName:_name,bankIndex:_index,...activity})=>({...activity,hint:guidance?'':activity.hint}))};}
 export function gradeIntervention(activity:InterventionRecord['activities'][number],answer:string):Pick<InterventionResponse,'outcome'|'expected'|'feedback'>{return {outcome:activity.kind==='open'?'ungraded':(activity.kind==='arithmetic'?sameArithmeticValue(answer,activity.expected):matchesBankAnswer(answer,activity.expected))?'correct':'incorrect',expected:activity.expected,feedback:activity.feedback};}
 export function validatePedagogyTables(t:{learning_analyses:LearningAnalysis[];observation_reviews:ObservationReview[];interventions:InterventionRecord[];intervention_responses:InterventionResponse[];intervention_reviews:InterventionReview[];attempts:Attempt[];rubric_submissions:RubricSubmission[];portfolio:PortfolioEntry[];concepts:Concept[]}){
   const analyses=new Map(t.learning_analyses.map(a=>[a.id,a])),reviews=new Map(t.observation_reviews.map(r=>[r.id,r])),interventions=new Map(t.interventions.map(i=>[i.id,i])),responses=new Map(t.intervention_responses.map(r=>[r.id,r]));const globalObservations=new Set<string>();
   for(const a of t.learning_analyses){const work=workContext(a.source,t.attempts,t.rubric_submissions,t.portfolio);validateAnalysis(a,work);for(const o of a.observations){if(globalObservations.has(o.id))throw new Error('Observaciones duplicadas.');globalObservations.add(o.id);}}
   const latest=new Map<string,ObservationReview>();
-  for(const r of t.observation_reviews){const a=analyses.get(r.analysisId),previous=latest.get(r.observationId);if(!a||a.subjectId!==r.subjectId||!a.observations.some(o=>o.id===r.observationId)||r.createdAt<a.createdAt||r.supersedesId!==(previous?.id??null)||previous&&r.createdAt<previous.createdAt)throw new Error('La revisión contiene referencias incompatibles.');if(r.followUpResponseId){const response=responses.get(r.followUpResponseId),plan=response?interventions.get(response.interventionId):undefined;if(!response||plan?.observationId!==r.observationId||response.createdAt>r.createdAt)throw new Error('La revisión no corresponde a la comprobación posterior.');}latest.set(r.observationId,r);}
+  for(const r of t.observation_reviews){const a=analyses.get(r.analysisId),previous=latest.get(r.observationId);if(!a||a.subjectId!==r.subjectId||!a.observations.some(o=>o.id===r.observationId)||r.createdAt<a.createdAt||r.supersedesId!==(previous?.id??null)||previous&&r.createdAt<previous.createdAt)throw new Error('La revisión contiene referencias incompatibles.');if(r.followUpResponseId){const response=responses.get(r.followUpResponseId),plan=response?interventions.get(response.interventionId):undefined;if(!response||plan?.observationId!==r.observationId||plan?.independent&&!plan.activities.some(a=>a.id===response.activityId&&a.followUp)||response.createdAt>r.createdAt)throw new Error('La revisión no corresponde a la comprobación posterior.');}latest.set(r.observationId,r);}
   for(const i of t.interventions){const a=analyses.get(i.analysisId),o=a?.observations.find(o=>o.id===i.observationId);if(!a||!o||a.subjectId!==i.subjectId||o.skill!==i.skill||i.createdAt<a.createdAt||i.followUpOn!==addDays(dayKey(new Date(i.createdAt)),1)||i.activities.filter(a=>a.followUp).length!==1||!i.activities[2].followUp||new Set(i.activities.map(a=>a.id)).size!==3)throw new Error('El refuerzo contiene referencias incompatibles.');for(const activity of i.activities){if(activity.kind==='arithmetic'){if(!activity.expression||activity.expected!==arithmeticValue(activity.expression)||activity.statement!==`Calcula ${activity.expression}. Escribe el resultado numérico o una fracción.`||activity.feedback!==`${activity.expression} = ${activity.expected}.`||activity.conceptId||activity.bankName!==null||activity.bankIndex!==null)throw new Error('El cálculo del refuerzo no es verificable.');}else if(activity.kind==='bank'){const bank=activity.bankName?EXERCISES[activity.bankName]:undefined,original=activity.bankIndex!==null?bank?.[activity.bankIndex]:undefined;if(!original||!activity.conceptId||!t.concepts.some(c=>c.id===activity.conceptId&&c.name===activity.bankName&&c.subjectId===i.subjectId)||activity.statement!==original.statement||activity.expected!==original.answer||activity.feedback!==original.feedback||activity.hint!==original.hint||activity.expression!==null)throw new Error('El ejercicio del refuerzo no pertenece al banco.');}else if(activity.expected||activity.expression||activity.conceptId||activity.bankName!==null||activity.bankIndex!==null)throw new Error('Una actividad abierta no puede tener una corrección automática.');}}
   for(const plan of t.interventions){
     const analysis=analyses.get(plan.analysisId)!,observation=analysis.observations.find(o=>o.id===plan.observationId)!;
@@ -142,6 +148,27 @@ export function validatePedagogyTables(t:{learning_analyses:LearningAnalysis[];o
     else if(plan.activities.some(a=>a.kind==='arithmetic'))throw new Error('El refuerzo aritmético necesita un cálculo comprobado.');
   }
   const answered=new Set<string>();
+  for (const plan of t.interventions) if (plan.independent && t.intervention_responses.some(response => response.interventionId === plan.id && plan.activities.find(activity => activity.id === response.activityId)?.kind === 'arithmetic' && !isNumericResult(response.answer))) throw new Error('La respuesta numérica debe contener un resultado, no la operación sin resolver.');
+  for (const plan of t.interventions) if (plan.independent && t.intervention_responses.some(response => response.interventionId === plan.id && plan.activities.find(activity => activity.id === response.activityId)?.followUp && response.hints !== 0)) throw new Error('La comprobación independiente no admite pistas.');
+  for (const plan of t.interventions) if (plan.independent && t.intervention_responses.some(response => response.interventionId === plan.id && plan.activities.find(activity => activity.id === response.activityId)?.followUp && dayKey(new Date(response.createdAt)) < independentCheckOn(plan, t.intervention_responses))) throw new Error('La comprobación debe realizarse en otro día después de la última práctica.');
+  for (const plan of t.interventions) if (plan.guidance) {
+    if (!plan.independent) throw new Error('La práctica guiada necesita una comprobación independiente.');
+    if (plan.activities.some(activity => activity.kind === 'open')) throw new Error('Una práctica guiada necesita corrección verificable.');
+    let previous = plan.createdAt;
+    for (let index = 0; index < plan.guidance.length; index++) {
+      const turn = plan.guidance[index], activity = plan.activities.find(activity => activity.id === turn.activityId);
+      if (!activity || activity.followUp || turn.createdAt < previous || turn.createdAt < plan.createdAt) throw new Error('El historial de pasos no corresponde al refuerzo.');
+      if (activity.id === plan.activities[1].id && !replayGuidance(plan.activities[0], plan.guidance.slice(0, index).filter(turn => turn.activityId === plan.activities[0].id)).view.completed) throw new Error('Completa la primera práctica antes de la segunda.');
+      if (activity.id === plan.activities[1].id && t.intervention_responses.some(response => response.activityId === plan.activities[0].id && response.createdAt > turn.createdAt)) throw new Error('La segunda práctica no puede preceder al resultado de la primera.');
+      previous = turn.createdAt;
+    }
+    for (const activity of plan.activities.filter(activity => !activity.followUp)) {
+      const turns = plan.guidance.filter(turn => turn.activityId === activity.id), result = replayGuidance(activity, turns), response = t.intervention_responses.find(response => response.activityId === activity.id);
+      if (Boolean(response) !== result.view.completed || response && (response.answer !== result.finalAnswer || response.hints !== result.totalHints || response.createdAt < turns.at(-1)!.createdAt)) throw new Error('La respuesta no coincide con los pasos y ayudas conservados.');
+      if (response && response.durationSeconds !== Math.min(86400, Math.max(0, Math.floor((Date.parse(turns.at(-1)!.createdAt) - Date.parse(turns[0].createdAt)) / 1000)))) throw new Error('El tiempo no coincide con la práctica conservada.');
+    }
+    if (t.intervention_responses.some(response => response.interventionId === plan.id && plan.activities.find(activity => activity.id === response.activityId)?.followUp && response.hints !== 0)) throw new Error('La comprobación independiente no admite pistas.');
+  }
   for(const r of t.intervention_responses){const i=interventions.get(r.interventionId),a=i?.activities.find(a=>a.id===r.activityId);if(!i||!a||i.subjectId!==r.subjectId||r.createdAt<i.createdAt||answered.has(r.activityId))throw new Error('La respuesta no corresponde al refuerzo.');answered.add(r.activityId);const grade=gradeIntervention(a,r.answer);if(r.expected!==grade.expected||r.feedback!==grade.feedback||r.outcome!==grade.outcome)throw new Error('La corrección del refuerzo no es verificable.');if(a.followUp&&(dayKey(new Date(r.createdAt))<i.followUpOn||i.activities.filter(a=>!a.followUp).some(a=>!t.intervention_responses.some(previous=>previous.activityId===a.id&&previous.createdAt<=r.createdAt))))throw new Error('La comprobación posterior debe realizarse después de la práctica y en otro día.');}
   for(const r of t.intervention_reviews){const i=interventions.get(r.interventionId);if(!i||i.subjectId!==r.subjectId||r.createdAt<i.createdAt)throw new Error('La reflexión no corresponde al refuerzo.');}
 }

@@ -15,7 +15,7 @@ try { await access(source); } catch {
   if (!response.ok) throw new Error('No se ha podido obtener el runtime de Microsoft.');
   await writeFile(source, Buffer.from(await response.arrayBuffer()));
 }
-await execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', "$taskSignature = Get-AuthenticodeSignature -LiteralPath $env:TUTOR_VC_SOURCE; if ($taskSignature.Status -ne 'Valid' -or $taskSignature.SignerCertificate.Subject -notmatch 'CN=Microsoft Corporation') { exit 1 }"], { windowsHide: true, env: { ...process.env, TUTOR_VC_SOURCE: source } });
+await execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', "$taskSignature = Get-AuthenticodeSignature -LiteralPath $env:TUTOR_VC_SOURCE; if ($taskSignature.Status -ne 'Valid' -or $taskSignature.SignerCertificate.Subject -notmatch 'CN=Microsoft Corporation') { exit 1 }"], { windowsHide: true, env: { ...Object.fromEntries(Object.entries(process.env).filter(([name]) => name.toLowerCase() !== 'psmodulepath')), TUTOR_VC_SOURCE: source } });
 const bytes = await readFile(source);
 async function extractCabinets(bytes, parent, prefix) {
   let offset = 0; let count = 0;

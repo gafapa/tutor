@@ -1,0 +1,27 @@
+TEMA 1. Fracciones y números racionales
+
+Una fracción a/b representa a partes de una unidad dividida en b partes iguales; b no puede ser cero. El denominador describe el tamaño de cada parte y el numerador cuántas se toman. Antes de comparar fracciones hay que comprobar que se refieren a la misma unidad: media pizza grande no equivale necesariamente a media pizza pequeña. Una fracción impropia, como 7/4, puede superar la unidad y escribirse como 1 + 3/4.
+Dos fracciones son equivalentes si representan el mismo número. Multiplicar numerador y denominador por un mismo número distinto de cero conserva el valor. Para simplificar, divide ambos por su máximo común divisor: 18/24 = 3/4. Una fracción irreducible no tiene factores comunes mayores que uno. El producto cruzado permite comprobar equivalencia: a/b = c/d si ad = bc, siempre que b y d sean distintos de cero.
+Para sumar o restar busca un denominador común, preferiblemente el mínimo común múltiplo. Reescribe cada sumando y opera solo los numeradores. Para multiplicar, multiplica numeradores y denominadores; puedes simplificar factores antes. Para dividir por una fracción no nula, multiplica por su inversa. La prioridad de operaciones sigue siendo paréntesis, productos y cocientes, sumas y restas. Un signo negativo puede situarse delante de la fracción; dos signos negativos se compensan.
+La forma decimal se obtiene dividiendo numerador entre denominador. Puede terminar o repetirse periódicamente. Conserva la fracción exacta durante el cálculo y redondea al final si el contexto lo pide. Comprueba la magnitud: multiplicar un número positivo por una fracción entre cero y uno lo reduce; dividirlo por esa fracción lo aumenta.
+
+EJEMPLO RESUELTO
+Una receta usa 3/4 kg y se prepara 2/3 de la receta. ¿Cuánta harina hace falta?
+Multiplicamos 3/4 por 2/3: 6/12 = 1/2 kg. El resultado es menor que 3/4 porque hacemos menos de una receta. No sumamos las fracciones: una indica cantidad y la otra un factor de escala.
+
+PRÁCTICA
+1. Simplifica 42/56 y justifica el divisor utilizado.
+2. Ordena 5/8, 2/3 y 3/4 de menor a mayor.
+3. Calcula 7/12 + 5/18 como fracción irreducible.
+4. Calcula (3/4 − 1/6) ÷ 7/3.
+5. Un compañero afirma que 1/2 + 1/3 = 2/5. Explica el error y corrígelo.
+6. Decide si dividir entre 2/5 reduce siempre un número positivo. Justifica con un ejemplo.
+7. Clasifica 3/8 y 2/3 según su desarrollo decimal y explica cuándo redondearías.
+8. Comprueba si 21/35 y 9/15 son equivalentes mediante dos métodos.
+9. Una botella de 3/2 L está llena a 2/3. ¿Cuánto líquido contiene?
+10. Se recorren 2/5 de una ruta por la mañana y 1/3 por la tarde. ¿Qué parte queda?
+11. Adapta una receta de cuatro personas con 3/8 kg de arroz para seis personas.
+12. Inventa una situación que se resuelva dividiendo 3/4 entre 1/8 e interpreta la unidad.
+
+REVISIÓN
+Explica el método, comprueba unidades y registra una duda.

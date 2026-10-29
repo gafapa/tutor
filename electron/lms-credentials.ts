@@ -10,6 +10,12 @@ export class LmsCredentials {
   get(id: string): MoodleCredential | undefined { const row = this.rows.find(r => r.connectionId === id); return row ? { siteUrl: row.siteUrl, userId: row.userId, token: row.token } : undefined; }
   private save(rows: typeof this.rows) { writeEncrypted(this.path, Buffer.from(JSON.stringify(rows)), this.key); this.rows = rows; }
   set(connectionId: string, value: MoodleCredential) { const rows = schema.parse([...this.rows.filter(r => r.connectionId !== connectionId), { ...value, connectionId }]); this.save(rows); }
+  updateMany(changes: { connectionId: string; value: MoodleCredential | undefined }[]) {
+    const ids = new Set(changes.map(change => change.connectionId));
+    if (ids.size !== changes.length) throw new Error('Hay conexiones de Moodle repetidas.');
+    const rows = schema.parse([...this.rows.filter(row => !ids.has(row.connectionId)), ...changes.flatMap(change => change.value ? [{ ...change.value, connectionId: change.connectionId }] : [])]);
+    this.save(rows);
+  }
   remove(connectionId: string) { this.save(this.rows.filter(r => r.connectionId !== connectionId)); }
   prune(ids: string[]) { this.save(this.rows.filter(r => ids.includes(r.connectionId))); }
   clear() { this.save([]); }

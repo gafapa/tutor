@@ -9,6 +9,7 @@ export interface PageProps {
   navigate(page: Page, conceptId?: string): void;
   practiceConceptId?: string;
   connectionProjectId?:string;
+  learningInterventionId?: string;
   onNewSubject(): void;
   onEditSubject(subject: Subject): void;
 }

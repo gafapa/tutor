@@ -1,0 +1,102 @@
+import {_electron as electron} from 'playwright';
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+import {mkdir,readFile,writeFile} from 'node:fs/promises';
+import {randomUUID,createHash} from 'node:crypto';
+import {resolve} from 'node:path';
+const password=process.env.TUTOR_LIVE_STUDENT_PASSWORD;delete process.env.TUTOR_LIVE_STUDENT_PASSWORD;
+if(!password)throw new Error('The student password must be supplied in memory.');
+const version=JSON.parse(await readFile('package.json','utf8')).version;
+assert.match(version,/^\d+\.\d+\.\d+$/);
+const packaged=process.argv.includes('--packaged'),prefix=(packaged?'live-student-packaged':'live-student')+'-'+version;
+const require=createRequire(import.meta.url),directory=resolve('.tools/live-desktop',randomUUID());await mkdir(directory,{recursive:true});
+const env={...process.env,TUTOR_DATA_DIR:directory,TUTOR_SMOKE:'1'};delete env.ELECTRON_RUN_AS_NODE;
+const launch=()=>electron.launch({executablePath:packaged?resolve('release/win-unpacked/Tutor Local.exe'):require('electron'),args:packaged?[]:['.'],env,timeout:60000});
+let app,window;const errors=[];
+try{
+  app=await launch();assert.equal(await app.evaluate(({app})=>app.getVersion()),version);window=await app.firstWindow();window.setDefaultTimeout(120000);window.on('pageerror',error=>errors.push(error.message));
+  await window.getByRole('button',{name:'Mi Moodle',exact:true}).click();
+  await window.getByRole('button',{name:'Conectar varias asignaturas',exact:true}).click();
+  await window.getByLabel('Dirección de Moodle').fill('https://aula.gallego.top');
+  await window.getByRole('dialog').getByRole('combobox').selectOption('password');
+  await window.getByLabel('Usuario',{exact:true}).fill('alumno');
+  await window.getByLabel('Contraseña',{exact:true}).fill(password);
+  await window.getByRole('button',{name:'Consultar mis cursos',exact:true}).click();
+  await window.getByRole('checkbox',{name:/Tutor Local · Matemáticas · Pruebas/}).check();
+  await window.getByRole('checkbox',{name:/Tutor Local · Redes · Pruebas/}).check();
+  await window.screenshot({path:`test-results/${prefix}-course-selection.png`});
+  await window.getByRole('button',{name:'Conectar 2 cursos',exact:true}).click();
+  await window.waitForFunction(async()=>{const s=await window.tutor.snapshot();return s.lmsConnections.length===2&&s.lmsRuns.filter(row=>row.status==='success').length===2;},null,{timeout:180000});
+  await window.waitForFunction(()=>!document.querySelector('.lms-batch-progress'));
+  const snapshot=await window.evaluate(()=>window.tutor.snapshot());
+  const seed=JSON.parse(await readFile('tests/fixtures/moodle-live/submissions.json','utf8'));
+  assert.equal(snapshot.subjects.length,2);assert.equal(snapshot.materials.length,24);assert.equal(snapshot.attempts.length,0);
+  assert.deepEqual(snapshot.lmsConnections.map(row=>row.courseId).sort((a,b)=>a-b),[9,10]);
+  for(const connection of snapshot.lmsConnections){
+    assert.equal(snapshot.lmsItems.filter(row=>row.connectionId===connection.id&&row.data.kind==='activity'&&row.data.module==='assign').length,connection.courseId===9?14:13);
+    assert.equal(snapshot.materials.filter(row=>row.subjectId===connection.subjectId).length,12);
+    const expected=seed.courses.find(row=>row.shortname=== (connection.courseId===9?'TUTOR-LOCAL-MATH-TEST':'TUTOR-LOCAL-NET-TEST'));
+    for(const work of expected.submissions){
+      const assignment=snapshot.lmsItems.find(row=>row.connectionId===connection.id&&row.data.kind==='activity'&&row.data.title===work.name);
+      assert.equal(assignment.data.submission.status,'submitted');assert.ok(assignment.data.submission.text.includes('DATOS SINTÉTICOS'));
+      assert.ok(assignment.data.submissionFeedback.includes(work.evaluation.feedback));
+      const grade=snapshot.lmsItems.find(row=>row.connectionId===connection.id&&row.data.kind==='grade'&&row.data.moduleId===assignment.data.moduleId);
+      assert.ok(grade&&!grade.data.hidden);assert.equal(grade.data.raw,work.evaluation.grade);
+    }
+  }
+  await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setBounds({width:1100,height:800}));
+  await window.screenshot({path:`test-results/${prefix}-import-complete.png`});
+  const assignment=snapshot.lmsItems.find(row=>row.subjectId===snapshot.subjects[0].id&&row.data.kind==='activity'&&row.data.module==='assign');
+  const cards=window.getByRole('article').filter({has:window.getByRole('heading',{name:assignment.data.title,exact:true})});
+  await cards.getByRole('button',{name:'Ver detalle y versiones',exact:true}).click();
+  await window.getByRole('dialog').getByText(assignment.data.instructions,{exact:true}).waitFor();
+  await window.getByRole('dialog').getByText('Evaluación sintética para pruebas.',{exact:false}).waitFor();
+  await window.screenshot({path:`test-results/${prefix}-assignment-details.png`});
+  await window.getByLabel('Mi reflexión sobre esta entrega',{exact:true}).fill('Revisaré mis errores de cálculo usando los comentarios recibidos.');
+  await window.getByRole('button',{name:'Guardar entrega en mi portfolio',exact:true}).click();
+  await window.getByRole('button',{name:'Leer trabajo y evidencias',exact:true}).click();
+  await window.getByRole('dialog').getByText('Mi reflexión',{exact:true}).waitFor();
+  const copied=await window.evaluate(()=>window.tutor.snapshot());assert.equal(copied.portfolio.length,1);assert.match(copied.portfolio[0].content,/Evaluación sintética para pruebas/);assert.equal(copied.attempts.length,0);
+  await window.screenshot({path:`test-results/${prefix}-portfolio.png`});
+  await window.getByRole('button',{name:'Cerrar',exact:true}).click();
+  await app.close();app=await launch();window=await app.firstWindow();window.setDefaultTimeout(60000);window.on('pageerror',error=>errors.push(error.message));
+  const reopened=await window.evaluate(()=>window.tutor.snapshot());
+  assert.ok(reopened.lmsConnections.every(row=>row.hasCredentials));assert.deepEqual(reopened.lmsItems,snapshot.lmsItems);assert.equal(reopened.subjects.length,2);assert.deepEqual(errors,[]);
+  const attachmentActivity=reopened.lmsItems.find(row=>row.data.kind==='activity'&&row.data.title==='Prueba técnica · Archivos de entrega');
+  assert.ok(attachmentActivity);assert.equal(attachmentActivity.data.submission.status,'submitted');
+  const attachmentGrade=reopened.lmsItems.find(row=>row.connectionId===attachmentActivity.connectionId&&row.data.kind==='grade'&&row.data.moduleId===attachmentActivity.data.moduleId);
+  assert.ok(attachmentGrade&&!attachmentGrade.data.hidden);assert.equal(attachmentGrade.data.raw,10);
+  const attachment=reopened.lmsItems.find(row=>row.connectionId===attachmentActivity.connectionId&&row.remoteKey===attachmentActivity.data.submission.files[0].remoteKey);
+  assert.ok(attachment);assert.equal(attachment.local.resourceState,'ready');assert.equal(attachment.local.materialIds.length,0);
+  assert.equal(attachment.local.originals.length,1);assert.equal(attachment.local.originals[0].base64,undefined);
+  const expectedBytes=await readFile('tests/fixtures/moodle-live/attachments/response.txt');
+  const expectedHash=createHash('sha256').update(expectedBytes).digest('hex');
+  assert.equal(attachment.data.contentHash,expectedHash);
+  for(const connection of reopened.lmsConnections)await window.evaluate(id=>window.tutor.disconnectMoodle(id),connection.id);
+  await window.reload();await window.getByRole('button',{name:'Mi Moodle',exact:true}).click();
+  await window.getByRole('article').filter({has:window.getByRole('heading',{name:attachmentActivity.data.title,exact:true})}).getByRole('button',{name:'Ver detalle y versiones',exact:true}).click();
+  await window.getByRole('button',{name:'Consultar archivo',exact:true}).click();
+  await window.getByRole('button',{name:'Leer sin conexión',exact:true}).click();
+  await window.getByLabel('Contenido del archivo',{exact:true}).getByText('DATOS SINTÉTICOS PARA PRUEBAS DE TUTOR LOCAL',{exact:false}).waitFor();
+  const originalPath=resolve(directory,'original-response.txt');
+  await app.evaluate(({dialog},path)=>{dialog.showSaveDialog=async()=>({canceled:false,filePath:path});},originalPath);
+  await window.getByRole('button',{name:'Guardar archivo…',exact:true}).click();
+  await window.getByText('Archivo guardado.',{exact:true}).waitFor();
+  assert.deepEqual(await readFile(originalPath),expectedBytes);
+  await window.screenshot({path:`test-results/${prefix}-attachment-offline.png`});
+  assert.deepEqual(errors,[]);
+  let liveLearningSource;
+  if(process.argv.includes("--learning-cycle")){
+    const candidate=snapshot.lmsItems.find(item=>item.data.kind==="activity"&&item.data.module==="assign"&&item.data.submission?.status==="submitted"&&!item.data.submission.group&&item.data.submission.text.trim()&&snapshot.lmsItems.some(grade=>grade.connectionId===item.connectionId&&grade.data.kind==="grade"&&grade.data.moduleId===item.data.moduleId&&!grade.data.hidden&&grade.data.raw!==null&&grade.data.raw<grade.data.max));
+    assert.ok(candidate);
+    const prepared=await window.evaluate(input=>window.tutor.prepareMoodlePractice(input),{itemId:candidate.id,revision:candidate.revision});
+    const again=await window.evaluate(input=>window.tutor.prepareMoodlePractice(input),{itemId:candidate.id,revision:candidate.revision});assert.deepEqual(again,prepared);
+    const state=await window.evaluate(()=>window.tutor.snapshot()),work=state.portfolio.find(row=>row.id===prepared.portfolioId);
+    assert.equal(work.content,candidate.data.submission.text);assert.equal(work.moodlePracticeSource.feedback,candidate.data.submissionFeedback??"");assert.equal(work.moodlePracticeSource.submittedAt,candidate.data.submission.updatedAt);assert.equal(state.attempts.length,0);assert.deepEqual(state.estimates,reopened.estimates);assert.deepEqual(state.lmsItems,reopened.lmsItems);
+    liveLearningSource={prepared:true,authoritativeOwnText:true,originalFeedbackAndDate:true,idempotent:true,offlineAfterDisconnect:true,noInventedAttemptOrMastery:true};
+  }
+  const receipt={version,checkedAt:new Date().toISOString(),siteUrl:'https://aula.gallego.top',username:'alumno',liveMoodle:true,developmentElectron:!packaged,packaged,passwordLoginThroughUI:true,multiCourseSelectionThroughUI:true,independentSubjects:true,completeAssignmentDetail:true,materialCount:24,assignmentCount:27,restartRetainsEncryptedAccess:true,seededSubmissionsRead:26,seededEvaluationsRead:26,feedbackVisible:true,submissionCopiedToPortfolio:true,readOnlyApplicationConnector:true,original26SubmissionsPreserved:true,supplementalEvaluationVisible:true,liveSubmissionOriginalDownloaded:true,originalSHA256Verified:true,offlineAfterDisconnect:true,originalExportByteExact:true,liveLearningSource,errors};
+  await writeFile(`test-results/${prefix}-desktop-verification.json`,JSON.stringify(receipt,null,2));
+  console.log('Live student desktop verification passed: password login, two courses, 24 materials, 27 assignments, live attachment, offline export and restart.');
+}catch(error){console.error(String(error.message).split(password).join('[redacted]'));process.exitCode=1;}
+finally{await app?.close();}

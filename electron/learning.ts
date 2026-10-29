@@ -1,6 +1,7 @@
 import type { Attempt, Concept, Estimate, Exercise } from '../shared/types.js';
+import { dayKey } from '../shared/calendar.js';
 
-export function estimate(conceptId: string, attempts: Attempt[],now=new Date()): Estimate {
+export function estimate(conceptId: string, attempts: Attempt[],now=new Date(), timezone?: string): Estimate {
   const current=now.toISOString();
   const evidence = attempts.filter(a => a.conceptId === conceptId && a.source === 'verified' && a.outcome !== 'ungraded'&&a.createdAt<=current)
     .reverse().sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 8);
@@ -8,7 +9,8 @@ export function estimate(conceptId: string, attempts: Attempt[],now=new Date()):
   if (!evidence.length) return base;
   const recent = evidence.slice(0, 3);
   const independent = evidence.filter(a => a.outcome === 'correct' && a.hints === 0);
-  const days = new Set(independent.map(a => a.createdAt.slice(0, 10)));
+  const formatter = timezone ? new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }) : undefined;
+  const days = new Set(independent.map(a => formatter?.format(new Date(a.createdAt)) ?? dayKey(new Date(a.createdAt))));
   const differentQuestions = new Set(independent.map(a => a.statement));
   const failed = recent.filter(a => a.outcome === 'incorrect').length;
   if (failed >= 2) {

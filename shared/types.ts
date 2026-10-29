@@ -62,12 +62,19 @@ export interface Diagnostic {
   startedAt: string; completedAt: string | null; reflection: string;
 }
 export interface DiagnosticView { session: Diagnostic; exercise: Exercise | null; }
+export interface PortfolioTaskSource {
+  entryId: string | null; title: string; content: string; reflection: string; createdAt: string; hash: string;
+}
+export interface PortfolioTaskInput {
+  portfolioId: string; title: string; notes: string; dueDate: string | null; estimatedMinutes: number;
+}
 export interface StudyTask {
   id: string; subjectId: string; title: string; notes: string; dueDate: string | null;
   conceptIds: string[]; estimatedMinutes: number;
   status: 'pending' | 'completed'; createdAt: string; completedAt: string | null;
   unitId?: string | null; curriculumIds?: string[];
   lms?: LmsTaskSource;
+  portfolioSource?: PortfolioTaskSource;
 }
 export type TaskInput = Pick<StudyTask, 'subjectId' | 'title' | 'notes' | 'dueDate' | 'conceptIds' | 'estimatedMinutes' | 'unitId' | 'curriculumIds'>;
 export interface Review {
@@ -120,6 +127,7 @@ export interface TutorAPI extends EducationAPI, StudyAPI, AssessmentAPI, RubricA
   reflectDiagnostic(input: { id: string; reflection: string }): Promise<void>;
   cancelDiagnostic(id: string): Promise<void>;
   createTask(input: TaskInput): Promise<StudyTask>;
+  createPortfolioTask(input: PortfolioTaskInput): Promise<StudyTask>;
   updateTask(input: TaskInput & { id: string }): Promise<void>;
   completeTask(input: { id: string; completed: boolean }): Promise<void>;
   deleteTask(id: string): Promise<void>;

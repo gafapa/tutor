@@ -1,0 +1,244 @@
+{
+  "siteUrl": "https://aula.gallego.top",
+  "summary": "Dos cursos independientes de pruebas con alumnado ficticio.",
+  "student": {
+    "username": "alumno",
+    "existingAccount": true
+  },
+  "subjects": [
+    {
+      "name": "Matemáticas",
+      "shortname": "TUTOR-LOCAL-MATH-TEST",
+      "fullname": "Tutor Local · Matemáticas · Pruebas",
+      "summary": "Curso independiente para pruebas de Tutor Local. Cuatro temas progresivos con apuntes, ejemplos resueltos y práctica variada. Solo datos ficticios.",
+      "units": [
+        {
+          "name": "Tema 1 · Fracciones y números racionales",
+          "summary": "Lectura, ejemplo resuelto y doce ejercicios: fracciones y números racionales.",
+          "contentPath": "mathematics/unit-01/content.html",
+          "resourcePath": "mathematics/unit-01/notes.txt",
+          "activities": [
+            {
+              "name": "T1 · Práctica de procedimientos",
+              "prompt": "Responde con pasos, unidades cuando proceda y una comprobación. Utiliza solo datos ficticios.\n\n1. Simplifica 42/56 y justifica el divisor utilizado.\n2. Ordena 5/8, 2/3 y 3/4 de menor a mayor.\n3. Calcula 7/12 + 5/18 como fracción irreducible.\n4. Calcula (3/4 − 1/6) ÷ 7/3.",
+              "exerciseCount": 4,
+              "dueInDays": 7
+            },
+            {
+              "name": "T1 · Detecta y explica errores",
+              "prompt": "Responde con pasos, unidades cuando proceda y una comprobación. Utiliza solo datos ficticios.\n\n1. Un compañero afirma que 1/2 + 1/3 = 2/5. Explica el error y corrígelo.\n2. Decide si dividir entre 2/5 reduce siempre un número positivo. Justifica con un ejemplo.\n3. Clasifica 3/8 y 2/3 según su desarrollo decimal y explica cuándo redondearías.\n4. Comprueba si 21/35 y 9/15 son equivalentes mediante dos métodos.",
+              "exerciseCount": 4,
+              "dueInDays": 9
+            },
+            {
+              "name": "T1 · Aplicación y transferencia",
+              "prompt": "Responde con pasos, unidades cuando proceda y una comprobación. Utiliza solo datos ficticios.\n\n1. Una botella de 3/2 L está llena a 2/3. ¿Cuánto líquido contiene?\n2. Se recorren 2/5 de una ruta por la mañana y 1/3 por la tarde. ¿Qué parte queda?\n3. Adapta una receta de cuatro personas con 3/8 kg de arroz para seis personas.\n4. Inventa una situación que se resuelva dividiendo 3/4 entre 1/8 e interpreta la unidad.",
+              "exerciseCount": 4,
+              "dueInDays": 11
+            }
+          ]
+        },
+        {
+          "name": "Tema 2 · Proporcionalidad y porcentajes",
+          "summary": "Lectura, ejemplo resuelto y doce ejercicios: proporcionalidad y porcentajes.",
+          "contentPath": "mathematics/unit-02/content.html",
+          "resourcePath": "mathematics/unit-02/notes.txt",
+          "activities": [
+            {
+              "name": "T2 · Práctica de procedimientos",
+              "prompt": "Responde con pasos, unidades cuando proceda y una comprobación. Utiliza solo datos ficticios.\n\n1. Calcula el precio de ocho cuadernos si cinco cuestan 12 euros.\n2. Calcula el 18 % de 250 y expresa el procedimiento como factor.\n3. Una factura final de 96,80 euros incluye un 21 % de IVA. Obtén la base.\n4. Seis operarios tardan diez días: estima el tiempo con cuatro bajo hipótesis de proporcionalidad inversa.",
+              "exerciseCount": 4,
+              "dueInDays": 14
+            },
+            {
+              "name": "T2 · Detecta y explica errores",
+              "prompt": "Responde con pasos, unidades cuando proceda y una comprobación. Utiliza solo datos ficticios.\n\n1. Explica por qué una tarifa de 10 euros fijos más 2 euros por hora no es directamente proporcional.\n2. Corrige: subir un 10 % y bajar un 10 % deja el precio igual.\n3. Distingue puntos porcentuales y variación relativa al pasar del 20 % al 25 %.\n4. Evalúa si dos descuentos sucesivos del 10 % equivalen a uno del 20 %.",
+              "exerciseCount": 4,
+              "dueInDays": 16
+            },
+            {
+              "name": "T2 · Aplicación y transferencia",
+              "prompt": "Responde con pasos, unidades cuando proceda y una comprobación. Utiliza solo datos ficticios.\n\n1. Compara un descuento del 30 % con dos descuentos del 20 % y 10 % sobre 100 euros.\n2. Una receta para tres usa 450 g. Planifica ingredientes para ocho personas.\n3. Un precio pasa de 64 a 72 euros. Calcula el porcentaje de aumento.\n4. Diseña dos ofertas de una compra y razona cuál conviene según la cantidad.",
+              "exerciseCount": 4,
+              "dueInDays": 18
+            }
+          ]
+        },
+        {
+          "name": "Tema 3 · Álgebra y ecuaciones",
+          "summary": "Lectura, ejemplo resuelto y doce ejercicios: álgebra y ecuaciones.",
+          "contentPath": "mathematics/unit-03/content.html",
+          "resourcePath": "mathematics/unit-03/notes.txt",
+          "activities": [
+            {
+              "name": "T3 · Práctica de procedimientos",
+              "prompt": "Responde con pasos, unidades cuando proceda y una comprobación. Utiliza solo datos ficticios.\n\n1. Evalúa 2x² − 3x + 1 para x = −2.\n2. Reduce 4a − 3 + 2a + 7.\n3. Resuelve 5x − 7 = 3x + 9 y comprueba.\n4. Resuelve (x − 1)/3 + x/2 = 3.",
+              "exerciseCount": 4,
+              "dueInDays": 21
+            },
+            {
+              "name": "T3 · Detecta y explica errores",
+              "prompt": "Responde con pasos, unidades cuando proceda y una comprobación. Utiliza solo datos ficticios.\n\n1. Corrige el desarrollo 2(x − 3) = 2x − 3.\n2. Explica por qué 4x + 2 = 4x + 5 no tiene solución.\n3. Describe las soluciones de 3(x + 2) = 3x + 6.\n4. Compara 2x² y (2x)² mediante x = 3.",
+              "exerciseCount": 4,
+              "dueInDays": 23
+            },
+            {
+              "name": "T3 · Aplicación y transferencia",
+              "prompt": "Responde con pasos, unidades cuando proceda y una comprobación. Utiliza solo datos ficticios.\n\n1. Un taxi cobra 4 euros fijos y 1,50 por km. ¿Qué distancia corresponde a 19 euros?\n2. El perímetro de un rectángulo es 34 cm y el largo supera al ancho en 5 cm. Halla ambos.\n3. Dos planes cuestan 8 + 2h y 20 + h euros. ¿A partir de qué uso conviene cada uno?\n4. Inventa una ecuación lineal con solución 7 y explica una comprobación.",
+              "exerciseCount": 4,
+              "dueInDays": 25
+            }
+          ]
+        },
+        {
+          "name": "Tema 4 · Datos, probabilidad y proyecto",
+          "summary": "Lectura, ejemplo resuelto y doce ejercicios: datos, probabilidad y proyecto.",
+          "contentPath": "mathematics/unit-04/content.html",
+          "resourcePath": "mathematics/unit-04/notes.txt",
+          "activities": [
+            {
+              "name": "T4 · Práctica de procedimientos",
+              "prompt": "Responde con pasos, unidades cuando proceda y una comprobación. Utiliza solo datos ficticios.\n\n1. Calcula media, mediana, moda y rango de 4, 5, 5, 6 y 10.\n2. Construye frecuencias absolutas y relativas para A, B, A, C, B, A.\n3. Calcula la probabilidad de obtener un múltiplo de tres en un dado equilibrado.\n4. Una bolsa contiene tres bolas rojas y dos azules. Calcula P(roja) y P(no roja).",
+              "exerciseCount": 4,
+              "dueInDays": 28
+            },
+            {
+              "name": "T4 · Detecta y explica errores",
+              "prompt": "Responde con pasos, unidades cuando proceda y una comprobación. Utiliza solo datos ficticios.\n\n1. Explica el problema de deducir hábitos de todo un centro preguntando solo a tus amistades.\n2. Corrige: la mediana siempre es uno de los valores observados. Da un contraejemplo.\n3. Analiza cómo puede cambiar la impresión de un gráfico al iniciar el eje vertical en 90.\n4. Explica por qué una coincidencia entre ventas de helado y baños no prueba causalidad.",
+              "exerciseCount": 4,
+              "dueInDays": 30
+            },
+            {
+              "name": "T4 · Aplicación y transferencia",
+              "prompt": "Responde con pasos, unidades cuando proceda y una comprobación. Utiliza solo datos ficticios.\n\n1. Diseña una encuesta ficticia de diez registros sin nombres ni datos personales.\n2. Calcula la probabilidad de dos rojas sin reposición de la bolsa de tres rojas y dos azules.\n3. Compara dos grupos con la misma media y diferente dispersión mediante un ejemplo.\n4. Redacta una conclusión con una limitación explícita a partir de una tabla inventada.",
+              "exerciseCount": 4,
+              "dueInDays": 32
+            }
+          ]
+        }
+      ],
+      "project": {
+        "name": "Proyecto final · Integra y revisa",
+        "prompt": "Elabora un presupuesto de una excursión ficticia para 24 personas con un máximo de 720 euros. Incluye transporte fijo de 180 euros, menú de 12 euros por persona con descuento del 10 % y una actividad de precio desconocido por persona. Plantea y resuelve la ecuación del precio máximo de la actividad. Compara el presupuesto con 20 participantes. Añade una tabla de cinco tiempos ficticios de viaje, calcula media y mediana y explica una limitación. Entrega decisiones, operaciones y revisión de unidades.\n\nCriterios: exactitud de cálculos y conceptos (4 puntos), justificación de decisiones (3), comprobación y límites (2), claridad y unidades (1).",
+        "dueInDays": 35
+      }
+    },
+    {
+      "name": "Redes",
+      "shortname": "TUTOR-LOCAL-NET-TEST",
+      "fullname": "Tutor Local · Redes · Pruebas",
+      "summary": "Curso independiente para pruebas de Tutor Local. Cuatro temas progresivos con apuntes, ejemplos resueltos y práctica variada. Solo datos ficticios.",
+      "units": [
+        {
+          "name": "Tema 1 · Bits, unidades y representación binaria",
+          "summary": "Lectura, ejemplo resuelto y doce ejercicios: bits, unidades y representación binaria.",
+          "contentPath": "networks/unit-01/content.html",
+          "resourcePath": "networks/unit-01/notes.txt",
+          "activities": [
+            {
+              "name": "T1 · Práctica de procedimientos",
+              "prompt": "Responde con pasos, unidades cuando proceda y una comprobación. Utiliza solo datos ficticios.\n\n1. Convierte 10110110 a decimal mostrando los pesos.\n2. Representa 13 y 200 como octetos binarios.\n3. Calcula cuántos patrones hay con seis bits.\n4. Calcula AND bit a bit de 11001010 y 11110000.",
+              "exerciseCount": 4,
+              "dueInDays": 7
+            },
+            {
+              "name": "T1 · Detecta y explica errores",
+              "prompt": "Responde con pasos, unidades cuando proceda y una comprobación. Utiliza solo datos ficticios.\n\n1. Corrige: ocho bits permiten representar de 1 a 256 sin incluir cero.\n2. Explica por qué 100 Mb/s no equivale a 100 MB/s.\n3. Distingue 1 MB y 1 MiB con sus cantidades de bytes.\n4. Detecta el error en la conversión 10000001 = 129 + 1.",
+              "exerciseCount": 4,
+              "dueInDays": 9
+            },
+            {
+              "name": "T1 · Aplicación y transferencia",
+              "prompt": "Responde con pasos, unidades cuando proceda y una comprobación. Utiliza solo datos ficticios.\n\n1. Estima el tiempo ideal para 75 MB a 50 Mb/s.\n2. Estima los MB ideales transferibles en 30 segundos a 80 Mb/s.\n3. Propón dos motivos por los que una descarga tarda más que el cálculo ideal.\n4. Diseña una tabla de potencias de dos de 2⁰ a 2¹⁰ y explica su utilidad.",
+              "exerciseCount": 4,
+              "dueInDays": 11
+            }
+          ]
+        },
+        {
+          "name": "Tema 2 · Ethernet, IPv4 y servicios de red",
+          "summary": "Lectura, ejemplo resuelto y doce ejercicios: ethernet, ipv4 y servicios de red.",
+          "contentPath": "networks/unit-02/content.html",
+          "resourcePath": "networks/unit-02/notes.txt",
+          "activities": [
+            {
+              "name": "T2 · Práctica de procedimientos",
+              "prompt": "Responde con pasos, unidades cuando proceda y una comprobación. Utiliza solo datos ficticios.\n\n1. Describe una diferencia entre switch y router mediante un envío local y otro remoto.\n2. Clasifica 10.2.3.4, 172.20.1.1 y 192.168.4.5 como direcciones privadas o no privadas de RFC 1918.\n3. Identifica los campos incorrectos en 192.168.300.5.\n4. Relaciona DHCP, DNS y ARP con asignación, nombres y resolución local IPv4-MAC.",
+              "exerciseCount": 4,
+              "dueInDays": 14
+            },
+            {
+              "name": "T2 · Detecta y explica errores",
+              "prompt": "Responde con pasos, unidades cuando proceda y una comprobación. Utiliza solo datos ficticios.\n\n1. Corrige: todas las direcciones que empiezan por 172 son privadas.\n2. Explica por qué tener IP privada no equivale a estar protegido.\n3. Corrige: DNS entrega siempre la dirección IP al portátil al conectarse.\n4. Razona por qué una respuesta a ping no demuestra que una web funcione.",
+              "exerciseCount": 4,
+              "dueInDays": 16
+            },
+            {
+              "name": "T2 · Aplicación y transferencia",
+              "prompt": "Responde con pasos, unidades cuando proceda y una comprobación. Utiliza solo datos ficticios.\n\n1. Dibuja una red ficticia con dos equipos, un switch y un router, indicando sus funciones.\n2. Describe las comprobaciones ante un nombre que falla mientras la IP responde.\n3. Elabora una tabla de configuración ficticia con IP, prefijo, puerta de enlace y DNS.\n4. Explica qué información necesitarías antes de afirmar que dos IP están en la misma subred.",
+              "exerciseCount": 4,
+              "dueInDays": 18
+            }
+          ]
+        },
+        {
+          "name": "Tema 3 · Máscaras y subnetting IPv4",
+          "summary": "Lectura, ejemplo resuelto y doce ejercicios: máscaras y subnetting ipv4.",
+          "contentPath": "networks/unit-03/content.html",
+          "resourcePath": "networks/unit-03/notes.txt",
+          "activities": [
+            {
+              "name": "T3 · Práctica de procedimientos",
+              "prompt": "Responde con pasos, unidades cuando proceda y una comprobación. Utiliza solo datos ficticios.\n\n1. Obtén máscara, direcciones totales y hosts utilizables para /27.\n2. Calcula red, broadcast y rango de 192.168.8.142/28.\n3. Enumera las cuatro subredes /26 de 192.168.5.0/24.\n4. Decide si 192.168.1.62/26 y 192.168.1.65/26 comparten subred.",
+              "exerciseCount": 4,
+              "dueInDays": 21
+            },
+            {
+              "name": "T3 · Detecta y explica errores",
+              "prompt": "Responde con pasos, unidades cuando proceda y una comprobación. Utiliza solo datos ficticios.\n\n1. Corrige: una /26 permite 64 hosts utilizables en una LAN convencional.\n2. Explica por qué 192.168.1.64/26 no se asigna a un PC de ese bloque.\n3. Detecta por qué 255.255.255.160 no es una máscara CIDR válida.\n4. Razona por qué treinta PCs y un router no caben en una /27.",
+              "exerciseCount": 4,
+              "dueInDays": 23
+            },
+            {
+              "name": "T3 · Aplicación y transferencia",
+              "prompt": "Responde con pasos, unidades cuando proceda y una comprobación. Utiliza solo datos ficticios.\n\n1. Dimensiona una subred para cincuenta PCs, un router y cinco impresoras.\n2. Propón una puerta de enlace válida para 192.168.8.142/28 y justifica.\n3. Divide 192.168.20.0/24 en ocho subredes iguales e indica prefijo y capacidad.\n4. Comprueba si 192.168.2.0/25 y 192.168.2.64/26 se solapan.",
+              "exerciseCount": 4,
+              "dueInDays": 25
+            }
+          ]
+        },
+        {
+          "name": "Tema 4 · Diagnóstico y diseño de una red pequeña",
+          "summary": "Lectura, ejemplo resuelto y doce ejercicios: diagnóstico y diseño de una red pequeña.",
+          "contentPath": "networks/unit-04/content.html",
+          "resourcePath": "networks/unit-04/notes.txt",
+          "activities": [
+            {
+              "name": "T4 · Práctica de procedimientos",
+              "prompt": "Responde con pasos, unidades cuando proceda y una comprobación. Utiliza solo datos ficticios.\n\n1. Ordena cuatro comprobaciones desde el enlace físico hasta la resolución de nombres.\n2. Comprueba si la puerta de enlace 192.168.4.1 es local para 192.168.4.70/26.\n3. Detecta el conflicto en dos equipos ficticios con IP 192.168.3.10/24.\n4. Define una prueba y resultado esperado para una hipótesis de fallo DNS.",
+              "exerciseCount": 4,
+              "dueInDays": 28
+            },
+            {
+              "name": "T4 · Detecta y explica errores",
+              "prompt": "Responde con pasos, unidades cuando proceda y una comprobación. Utiliza solo datos ficticios.\n\n1. Explica por qué modificar IP, máscara y DNS a la vez dificulta el diagnóstico.\n2. Corrige: si ping falla, el servidor está necesariamente apagado.\n3. Corrige: crear dos subredes en papel crea aislamiento de seguridad automáticamente.\n4. Distingue una observación de una hipótesis en un ejemplo de fallo web.",
+              "exerciseCount": 4,
+              "dueInDays": 30
+            },
+            {
+              "name": "T4 · Aplicación y transferencia",
+              "prompt": "Responde con pasos, unidades cuando proceda y una comprobación. Utiliza solo datos ficticios.\n\n1. Diseña tres subredes /26 sin solapamiento para tres aulas de cuarenta equipos y un router por aula.\n2. Reserva el cuarto bloque /26 e identifica su red y broadcast.\n3. Redacta una incidencia ficticia con síntoma, dos hipótesis, pruebas y criterio de cierre.\n4. Revisa el diseño de otra persona mediante una lista de cinco comprobaciones justificadas.",
+              "exerciseCount": 4,
+              "dueInDays": 32
+            }
+          ]
+        }
+      ],
+      "project": {
+        "name": "Proyecto final · Integra y revisa",
+        "prompt": "Diseña una red ficticia para tres aulas de 40 PCs y una interfaz de router por aula usando 192.168.50.0/24. Asigna un /26 por aula y reserva el cuarto. Documenta red, máscara, broadcast, rango, puerta de enlace y dos IP de ejemplo por aula. Dibuja las funciones de switches y router. Incluye tres incidencias (IP duplicada, puerta de enlace fuera de subred y DNS incorrecto) con pruebas y resultados esperados. Explica que el direccionamiento por sí solo no implementa aislamiento. No ejecutes pruebas en redes reales.\n\nCriterios: exactitud de cálculos y conceptos (4 puntos), justificación de decisiones (3), comprobación y límites (2), claridad y unidades (1).",
+        "dueInDays": 35
+      }
+    }
+  ]
+}

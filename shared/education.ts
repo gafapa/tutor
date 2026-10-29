@@ -30,8 +30,9 @@ export interface PortfolioEntry {
   id: string; subjectId: string; title: string; kind: 'work' | 'project' | 'reflection' | 'attempt';
   content: string; reflection: string; conceptIds: string[]; evidenceIds: string[];
   automatic: boolean; createdAt: string;
+  moodlePracticeSource?: { url: string; courseName: string; revision: number; attempt: number; instructions: string; feedback: string; sourceKey: string; submittedAt?: string | null };
 }
-export type PortfolioInput = Omit<PortfolioEntry, 'id' | 'createdAt' | 'automatic'>;
+export type PortfolioInput = Omit<PortfolioEntry, 'id' | 'createdAt' | 'automatic' | 'moodlePracticeSource'>;
 export interface EducationalEvent {
   id: string; subjectId?: string; type: string; createdAt: string; payload: Record<string, unknown>;
 }

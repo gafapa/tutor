@@ -1,0 +1,27 @@
+TEMA 3. Máscaras y subnetting IPv4
+
+La notación /p indica cuántos de los 32 bits forman el prefijo de red. Los 32 − p restantes identifican posiciones dentro del bloque. Un /26 deja seis bits y contiene 64 direcciones. La máscara tiene p unos consecutivos y el resto ceros; /26 corresponde a 255.255.255.192. El prefijo no cuenta equipos: delimita un bloque y permite calcular pertenencia a una red.
+Para una subred IPv4 convencional con broadcast y prefijos de /1 a /30, se reservan la dirección de red, con todos los bits de host a cero, y la de broadcast, con todos a uno. La capacidad habitual de hosts es 2 elevado a los bits de host menos dos. No apliques esta fórmula sin contexto a /31 o /32: tienen usos especiales. En estas prácticas de dimensionamiento utilizamos prefijos de /24 a /30.
+En /26, el salto del último octeto es 64: los bloques de una /24 empiezan en 0, 64, 128 y 192. Para 192.168.10.77/26 el bloque va de .64 a .127, con hosts .65 a .126. La puerta de enlace debe ser una dirección de host apropiada en la misma subred; no tiene por qué ser siempre la primera. Obtener la dirección de red mediante AND sirve también cuando el límite cae en otro octeto.
+Para dimensionar, elige el menor bloque que cubra los hosts requeridos, incluyendo las interfaces de router y las reservas previstas. Treinta equipos más una puerta de enlace necesitan al menos 31 direcciones de host: un /27 ofrece solo 30 y no basta; un /26 ofrece 62. Comprueba también alineación y solapamientos. Dividir un bloque en subredes iguales aumenta el prefijo y reduce la capacidad de cada una.
+
+EJEMPLO RESUELTO
+Determina red, broadcast y rango para 192.168.10.77/26.
+La máscara es 255.255.255.192 y el tamaño de bloque 64. El 77 cae entre 64 y 127. Red: 192.168.10.64; broadcast: 192.168.10.127; hosts: 192.168.10.65–126, 62 utilizables en esta subred convencional.
+
+PRÁCTICA
+1. Obtén máscara, direcciones totales y hosts utilizables para /27.
+2. Calcula red, broadcast y rango de 192.168.8.142/28.
+3. Enumera las cuatro subredes /26 de 192.168.5.0/24.
+4. Decide si 192.168.1.62/26 y 192.168.1.65/26 comparten subred.
+5. Corrige: una /26 permite 64 hosts utilizables en una LAN convencional.
+6. Explica por qué 192.168.1.64/26 no se asigna a un PC de ese bloque.
+7. Detecta por qué 255.255.255.160 no es una máscara CIDR válida.
+8. Razona por qué treinta PCs y un router no caben en una /27.
+9. Dimensiona una subred para cincuenta PCs, un router y cinco impresoras.
+10. Propón una puerta de enlace válida para 192.168.8.142/28 y justifica.
+11. Divide 192.168.20.0/24 en ocho subredes iguales e indica prefijo y capacidad.
+12. Comprueba si 192.168.2.0/25 y 192.168.2.64/26 se solapan.
+
+REVISIÓN
+Explica el método, comprueba unidades y registra una duda.

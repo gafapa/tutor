@@ -1,0 +1,10 @@
+MATEMÁTICAS · FRACCIONES Y PORCENTAJES
+Material sintético para las pruebas de Tutor Local.
+
+Una fracción representa partes iguales de un todo. Un medio equivale a dos cuartos.
+1/2 + 1/4 = 2/4 + 1/4 = 3/4.
+6/8 se simplifica dividiendo numerador y denominador por 2: 3/4.
+El 20 % de 150 es 150 × 20/100 = 30.
+Un descuento del 25 % sobre 80 euros resta 20 euros: el precio final es 60 euros.
+
+Explica tus pasos y comprueba si cada resultado tiene sentido.

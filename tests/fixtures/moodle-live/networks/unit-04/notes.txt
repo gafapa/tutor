@@ -1,0 +1,27 @@
+TEMA 4. Diagnóstico y diseño de una red pequeña
+
+El diagnóstico comienza con una descripción concreta: qué falla, desde qué equipo, desde cuándo y qué cambios precedieron al fallo. Separa hechos observados de hipótesis. No reinicies ni cambies varios parámetros a la vez sin anotar el estado, porque puedes ocultar la causa. En estas prácticas no se ejecutan pruebas contra servicios ajenos ni se escanean redes reales: utiliza únicamente los escenarios ficticios.
+Una secuencia útil revisa enlace y conexión, configuración IP y prefijo, pertenencia de la puerta de enlace a la subred, conectividad local, acceso a un destino autorizado y resolución de nombres. Un fallo de ping no demuestra por sí solo ausencia de conectividad: ICMP puede estar filtrado. Un ping correcto tampoco acredita que el puerto web o la aplicación funcionen. Cada prueba debe indicar el protocolo o función que realmente comprueba.
+Los conflictos de IP aparecen cuando dos interfaces usan la misma dirección dentro del mismo dominio de red pertinente. Un error de máscara puede provocar que un equipo intente alcanzar directamente un destino que debía enviar al router. Una puerta de enlace fuera de la subred suele impedir su uso normal. Cambiar DNS no soluciona un cable desconectado. Antes de proponer una corrección, explica cómo encaja el síntoma con la hipótesis.
+Un diseño incluye inventario ficticio, necesidades de hosts, bloques sin solapamiento, reserva para crecimiento y un esquema de conexiones. Documenta IP, prefijo, router y DNS por grupo, evitando credenciales. Verifica matemáticamente los rangos y luego define pruebas con resultado esperado. Un plan de direccionamiento no crea VLAN ni aislamiento por sí solo: el equipo de red debe configurarse para aplicar esa separación. La entrega termina con limitaciones y una comprobación que podría refutar tu explicación.
+
+EJEMPLO RESUELTO
+Un equipo tiene 192.168.30.20/27 y puerta de enlace 192.168.30.33.
+El equipo pertenece a 192.168.30.0/27, con hosts .1–.30. La .33 pertenece al siguiente bloque, por lo que esa puerta de enlace no es apropiada para esta configuración normal. Antes de cambiarla, consulta el plan: puede estar equivocada la IP, el prefijo o la puerta de enlace.
+
+PRÁCTICA
+1. Ordena cuatro comprobaciones desde el enlace físico hasta la resolución de nombres.
+2. Comprueba si la puerta de enlace 192.168.4.1 es local para 192.168.4.70/26.
+3. Detecta el conflicto en dos equipos ficticios con IP 192.168.3.10/24.
+4. Define una prueba y resultado esperado para una hipótesis de fallo DNS.
+5. Explica por qué modificar IP, máscara y DNS a la vez dificulta el diagnóstico.
+6. Corrige: si ping falla, el servidor está necesariamente apagado.
+7. Corrige: crear dos subredes en papel crea aislamiento de seguridad automáticamente.
+8. Distingue una observación de una hipótesis en un ejemplo de fallo web.
+9. Diseña tres subredes /26 sin solapamiento para tres aulas de cuarenta equipos y un router por aula.
+10. Reserva el cuarto bloque /26 e identifica su red y broadcast.
+11. Redacta una incidencia ficticia con síntoma, dos hipótesis, pruebas y criterio de cierre.
+12. Revisa el diseño de otra persona mediante una lista de cinco comprobaciones justificadas.
+
+REVISIÓN
+Explica el método, comprueba unidades y registra una duda.

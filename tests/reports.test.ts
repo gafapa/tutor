@@ -57,7 +57,7 @@ test('al volver se recuperan todas las semanas con ejercicios pendientes sin dup
 test('la base SQLite 0.8 se actualiza con datos cifrados conservados y sin resultados fabricados', async () => {
   const { store, path, key, subject } = await fixture(); store.close(); const sql = await initSqlJs({ locateFile: () => wasm }), db = new sql.Database(decrypt(await readFile(path), key));
   db.run('DROP TABLE learning_reports; DROP TABLE report_preferences; PRAGMA user_version=8;'); writeEncrypted(path, db.export(), key); db.close();
-  const reopened = await Store.open(path, key, wasm); try { assert.equal(reopened.snapshot().subjects[0].id, subject.id); assert.equal(reopened.snapshot().learningReports.length, 0); assert.equal(JSON.parse(reopened.exportData()).version, 12); assert.doesNotThrow(() => reopened.importData(reopened.exportData())); } finally { reopened.close(); }
+  const reopened = await Store.open(path, key, wasm); try { assert.equal(reopened.snapshot().subjects[0].id, subject.id); assert.equal(reopened.snapshot().learningReports.length, 0); assert.equal(JSON.parse(reopened.exportData()).version, 18); assert.doesNotThrow(() => reopened.importData(reopened.exportData())); } finally { reopened.close(); }
 });
 async function fixture() {
   const dir = resolve('.tools/test-data', randomUUID()); await mkdir(dir, { recursive: true });

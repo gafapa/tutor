@@ -4,6 +4,8 @@ import { readFile, mkdir, copyFile, writeFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 
+if (!process.argv.includes('--installer')) { await import('./prepare-portable-distribution.mjs'); process.exit(0); }
+
 const pkg = JSON.parse(await readFile('package.json', 'utf8'));
 assert.match(pkg.version, /^\d+\.\d+\.\d+$/, 'La distribución requiere una versión numérica estable.');
 const filename = `Tutor-Local-${pkg.version}-Instalador.exe`;
@@ -30,8 +32,9 @@ const sourceCommit = process.env.GITHUB_SHA || execFileSync('git', ['rev-parse',
 assert.match(sourceCommit, /^[a-f0-9]{40}$/);
 const workflowUrl = process.env.GITHUB_ACTIONS === 'true'
   ? `https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}` : null;
+const sourceWorkingTreeDirty = process.env.GITHUB_ACTIONS === 'true' ? false : Boolean(execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' }).trim());
 const manifest = {
-  version: pkg.version, sourceCommit, workflowUrl, checkedAt: release.checkedAt,
+  version: pkg.version, sourceCommit, sourceWorkingTreeDirty, workflowUrl, checkedAt: release.checkedAt,
   installer: { filename, bytes: bytes.length, sha256 },
   domainTests: release.domainTests, packagedChecks: release.packagedChecks, checks: release.checks,
   silentInstallAndUninstall: true, profilePreservedOnUninstall: true,
@@ -43,5 +46,5 @@ await mkdir(directory, { recursive: true });
 await copyFile(join('release', filename), join(directory, filename));
 await writeFile(join(directory, filename + '.sha256'), `${sha256}  ${filename}\n`);
 await writeFile(join(directory, 'verification.json'), JSON.stringify(manifest, null, 2) + '\n');
-await writeFile(join(directory, 'release-notes.md'), `Tutor Local ${pkg.version} para Windows de 64 bits, en desarrollo.\n\nDescarga **${filename}** y abre el asistente en castellano. No necesitas Node.js, Python ni Ollama. Los datos del alumno permanecen en su ordenador.\n\nIncluye OCR, búsqueda semántica y el motor de IA local. Para activar la tutoría con Qwen, la app ofrece una descarga opcional de aproximadamente 1,12 GB; después funciona sin Internet.\n\nVerificación: ${release.domainTests} pruebas de dominio, ${release.packagedChecks} recorridos de la app empaquetada e instalación/desinstalación silenciosa. Adjuntos: instalador, SHA-256 y comprobante con el commit de origen.${workflowUrl ? ` [Ejecución de GitHub Actions](${workflowUrl}).` : ''}\n\nEsta versión todavía no tiene firma digital. El asistente interactivo en un Windows limpio y la validación pedagógica con alumnos reales siguen pendientes. Consulta el [alcance de los 80 requisitos](https://github.com/gafapa/tutor/blob/v${pkg.version}/docs/requirements.md).\n`);
+await writeFile(join(directory, 'release-notes.md'), `Tutor Local ${pkg.version} for 64-bit Windows, in development.\n\nOpen **${filename}** and follow the Spanish installer. Python, Node.js and Ollama are not required. Student data stays on the local computer.\n\nIncludes local OCR, semantic search and the AI engine. Activating Qwen tutoring requires an optional download of approximately 1.12 GB; inference then works offline.\n\nVerification: ${release.domainTests} domain tests, ${release.packagedChecks} packaged workflows and silent installation/uninstallation on the current Windows host. The SHA-256 and verification manifest accompany the installer.${workflowUrl ? ` [GitHub Actions run](${workflowUrl}).` : ''}\n\nSource: ${sourceCommit}.${sourceWorkingTreeDirty ? ' This local build includes uncommitted workspace changes; the commit identifies its base, not the complete source.' : ''}\n\nCode signing, the interactive installer wizard on clean Windows, and pedagogical validation with real students remain outside this qualification. See the [current product scope](https://github.com/gafapa/tutor/blob/main/docs/product-scope.md).\n`);
 console.log(`Distribución ${pkg.version} preparada: ${filename}, ${bytes.length} bytes, SHA-256 ${sha256}.`);

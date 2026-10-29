@@ -9,7 +9,7 @@ const php = join(phpRoot, 'php.exe'), moodle = join(root, 'moodle'), data = join
 async function port() { const server = net.createServer(); await new Promise(r => server.listen(0, '127.0.0.1', r)); const value = server.address().port; await new Promise(r => server.close(r)); return value; }
 async function exists(path) { try { await access(path); return true; } catch { return false; } }
 async function run(executable, args, log, options = {}) {
-  const child = spawn(executable, args, { cwd: root, windowsHide: true, ...options });
+  const child = spawn(executable, args, { cwd: root, windowsHide: true, env: { ...process.env, OPENSSL_CONF: join(phpRoot, 'extras/ssl/openssl.cnf') }, ...options });
   const chunks = []; child.stdout?.on('data', c => chunks.push(c)); child.stderr?.on('data', c => chunks.push(c));
   const code = await new Promise((r, reject) => { child.once('error', reject); child.once('exit', r); });
   await writeFile(join(root, log), Buffer.concat(chunks));
