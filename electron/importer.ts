@@ -7,7 +7,7 @@ import { decodeText, htmlMaterial, subtitleMaterial } from './import-text.js';
 
 export interface ExtractedMaterial { name: string; kind: string; text: string; pageCount: number; }
 
-export async function extractMaterial(path: string): Promise<ExtractedMaterial> {
+export async function extractMaterial(path: string, allowEmptyPdf = false): Promise<ExtractedMaterial> {
   const handle = await open(path, 'r');
   try {
     const file = await handle.stat();
@@ -21,10 +21,10 @@ export async function extractMaterial(path: string): Promise<ExtractedMaterial> 
     }
     const after = await handle.stat();
     if (count !== file.size || after.size !== file.size || after.mtimeMs !== file.mtimeMs) throw new Error('El archivo cambió durante la lectura. Espera a que termine de guardarse y vuelve a añadirlo.');
-    return await extractMaterialBuffer(basename(path), buffer.subarray(0, count));
+    return await extractMaterialBuffer(basename(path), buffer.subarray(0, count), allowEmptyPdf);
   } finally { await handle.close(); }
 }
-export async function extractMaterialBuffer(name: string, buffer: Buffer): Promise<ExtractedMaterial> {
+export async function extractMaterialBuffer(name: string, buffer: Buffer, allowEmptyPdf = false): Promise<ExtractedMaterial> {
   if (buffer.length > 20 * 1024 * 1024) throw new Error('El archivo supera el límite de 20 MB.');
   const extension = extname(name).toLowerCase();
   let text = '';
@@ -58,7 +58,7 @@ export async function extractMaterialBuffer(name: string, buffer: Buffer): Promi
     } finally { await task.destroy(); }
   } else throw new Error('Formato no compatible. Añade PDF, DOCX, PPTX, TXT, Markdown, HTML, SRT o VTT.');
   if (text.length > 2000000) throw new Error('El documento contiene demasiado texto para esta primera versión.');
-  if (!text.trim()) throw new Error('No se ha encontrado texto. Para una imagen o un PDF escaneado, usa «Leer imagen o PDF escaneado» y revisa el reconocimiento.');
+  if (!text.trim() && !(allowEmptyPdf && extension === '.pdf')) throw new Error('No se ha encontrado texto. Para una imagen o un PDF escaneado, usa «Leer imagen o PDF escaneado» y revisa el reconocimiento.');
   const fullName = basename(name).trim();
   const shortName = fullName.length <= 120 ? fullName : [...fullName.slice(0, 110)].slice(0, 109).join('') + '…' + extension;
   return { name: shortName, kind: extension === '.htm' ? 'html' : extension.slice(1), text, pageCount };

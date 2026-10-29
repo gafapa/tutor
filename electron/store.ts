@@ -1,7 +1,7 @@
 import initSqlJs, { type Database, type SqlJsStatic } from 'sql.js';
 import { createHash, randomUUID } from 'node:crypto';
 import {z} from 'zod';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, renameSync } from 'node:fs';
 import type { Attempt, AttemptInput, Concept, ConceptInput, Diagnostic, DiagnosticView, Material, Message, Subject, SubjectInput, Snapshot, StudyTask, TaskInput } from '../shared/types.js';
 import { readEncrypted, writeEncrypted } from './vault.js';
 import { BACKUP_TABLE_LIMITS, MAX_BACKUP_JSON_BYTES, assertBackupJsonSize } from './backup-limits.js';
@@ -40,6 +40,7 @@ import { MAX_CAPTURE_STORAGE } from './ocr-config.js';
 import { replayGuidance } from './guided-practice.js';
 import { independentCheckOn } from '../shared/learning-cycle.js';
 import { isNumericResult, arithmeticGuide, sameArithmeticValue } from './arithmetic.js';
+import { validateProgrammeRows } from './programme.js';
 
 const EDUCATION_TABLES = ['curriculum', 'units', 'flashcards', 'card_revisions', 'card_reviews', 'portfolio', 'study_sessions', 'mock_exams', 'rubrics', 'rubric_versions', 'rubric_submissions', 'rubric_reviews', 'lms_connections', 'lms_items', 'lms_versions', 'lms_runs', 'learning_analyses', 'observation_reviews', 'interventions', 'intervention_responses', 'intervention_reviews', 'concept_relations', 'relation_reviews', 'interdisciplinary_projects', 'project_versions', 'project_works', 'project_activity_reviews', 'learning_reports', 'report_preferences', 'personal_goals', 'goal_reviews', 'alert_reviews', 'captures', 'capture_reviews'] as const;
 const TABLES = ['subjects', 'concepts', 'materials', 'attempts', 'messages', 'events', 'settings', 'diagnostics', 'tasks', ...EDUCATION_TABLES] as const;
@@ -47,11 +48,11 @@ const DEFAULT_SETTINGS: Snapshot['settings'] = { name: '', dailyMinutes: 20, lar
 
 export class Store {
   private enforceBackupCapacity = false;
-  private constructor(private db: Database, private sql: SqlJsStatic, private path: string, private key: Buffer) {}
+  private constructor(private db: Database, private sql: SqlJsStatic, private path: string, private key: Buffer, private plain = false) {}
 
-  static async open(path: string, key: Buffer, wasmPath: string) {
+  static async open(path: string, key: Buffer, wasmPath: string, plain = false) {
     const sql = await initSqlJs({ locateFile: () => wasmPath });
-    const db = existsSync(path) ? new sql.Database(readEncrypted(path, key)) : new sql.Database();
+    const db = existsSync(path) ? new sql.Database(plain ? readFileSync(path) : readEncrypted(path, key)) : new sql.Database();
     const version = db.exec('PRAGMA user_version')[0]?.values[0]?.[0] ?? 0;
     if (Number(version) > 18) { db.close(); throw new Error('Este historial pertenece a una versión más reciente de Tutor Local.'); }
     db.run('PRAGMA foreign_keys = ON; PRAGMA secure_delete = ON;');
@@ -68,7 +69,7 @@ export class Store {
       PRAGMA user_version = 18;
     `);
     for (const table of EDUCATION_TABLES) db.run(`CREATE TABLE IF NOT EXISTS ${table} (id TEXT PRIMARY KEY, subject_id TEXT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE, data TEXT NOT NULL)`);
-    const store = new Store(db, sql, path, key);
+    const store = new Store(db, sql, path, key, plain);
     for (const subject of store.list<Subject>('subjects')) if (subject.course === undefined) store.replace('subjects', { ...subject, course: '' });
     if (!store.list('settings').length) store.put('settings', { id: 'profile', ...DEFAULT_SETTINGS });
     if (Number(version) < 3) store.backfillPortfolio();
@@ -138,7 +139,11 @@ export class Store {
     this.db.run('PRAGMA foreign_keys = ON; PRAGMA secure_delete = ON;');
     return bytes;
   }
-  private persist() { writeEncrypted(this.path, this.bytes(), this.key); }
+  private persist() {
+    if (!this.plain) { writeEncrypted(this.path, this.bytes(), this.key); return; }
+    writeFileSync(this.path + '.tmp', this.bytes(), { mode: 0o600, flush: true });
+    renameSync(this.path + '.tmp', this.path);
+  }
   private event(type: string, subjectId?: string, payload: object = {}) {
     this.put('events', { id: randomUUID(), subjectId, type, createdAt: new Date().toISOString(), payload });
   }
@@ -195,7 +200,7 @@ export class Store {
       flashcards, cardReviews, cardRevisions: this.list<FlashcardRevision>('card_revisions'),
       cardSchedules: flashcards.filter(c => c.approved).map(card => scheduleCard(card, cardReviews)),
       portfolio: this.list<PortfolioEntry>('portfolio'), events: this.list<EducationalEvent>('events'),
-      settings: { name: settings.name, dailyMinutes: settings.dailyMinutes, largeText: settings.largeText, highContrast: settings.highContrast }
+      settings: { name: settings.name, dailyMinutes: settings.dailyMinutes, largeText: settings.largeText, highContrast: settings.highContrast, onboardingCompleted: settings.onboardingCompleted, aiProvider: settings.aiProvider, cloudConsent: settings.cloudConsent, localModelId: settings.localModelId, codexExecutable: settings.codexExecutable, claudeExecutable: settings.claudeExecutable }
     };
   }
 
@@ -705,10 +710,10 @@ export class Store {
     this.put('rubric_reviews', row); this.event('rubric.reviewed', row.subjectId, { submissionId: row.submissionId, reviewId: row.id, origin, supersedesId: row.supersedesId }); return row;
   }
   saveRubricReview(input: RubricReviewInput): RubricReview { return this.transaction(() => this.insertRubricReview(input, 'self', null)); }
-  saveRubricProposal(submissionId: string, results: RubricResult[], modelName: string, workState: RubricWorkState): RubricReview {
+  saveRubricProposal(submissionId: string, results: RubricResult[], modelName: string, workState: RubricWorkState, origin: 'local-ai' | 'account-ai' = 'local-ai'): RubricReview {
     const { submission } = this.rubricContext(submissionId);
     if (!['attempt', 'no-attempt', 'uncertain'].includes(workState) || workState !== 'attempt' && results.some(result => result.levelId !== null || result.quotes.length)) throw new Error('Una revisión sin intento debe conservar sus niveles sin estimar.');
-    return this.transaction(() => this.insertRubricReview({ submissionId, supersedesId: null, results, reflection: '', nextStep: '' }, 'local-ai', { name: modelName, promptVersion: RUBRIC_PROMPT_VERSION, workState, coverage: [{ start: 0, end: submission.text.length }] }));
+    return this.transaction(() => this.insertRubricReview({ submissionId, supersedesId: null, results, reflection: '', nextStep: '' }, origin, { name: modelName, promptVersion: RUBRIC_PROMPT_VERSION, workState, coverage: [{ start: 0, end: submission.text.length }] }));
   }
   private removeRubricSubmission(id: string) {
     this.detachProjectSource('submission',id);
@@ -943,6 +948,23 @@ export class Store {
         this.put('learning_analyses', analysis);
       }
       return { portfolioId: entry!.id, analysisId: analysis.id };
+    });
+  }
+  importProgramme(subjectId: string, name: string, text: string, rows: import('../shared/setup.js').ProgrammeRow[]) {
+    this.requireSubject(subjectId);
+    ({ name, text } = materialInput.parse({ subjectId, name, kind: 'pdf', text, pageCount: text.split('\f').length }));
+    rows = validateProgrammeRows(rows,text);
+    const hash = createHash('sha256').update(text).digest('hex');
+    if (this.list<Material>('materials').some(m => m.subjectId === subjectId && m.hash === hash)) throw new Error('Esta programación ya está en los materiales. Conserva o edita las unidades existentes.');
+    return this.transaction(() => {
+      const materialId=randomUUID(),createdAt=new Date().toISOString();
+      this.put('materials',{id:materialId,subjectId,name,kind:'pdf',text,pageCount:text.split('\f').length,hash,version:1,createdAt});
+      const unitCount=this.list<DidacticUnit>('units').filter(u=>u.subjectId===subjectId).length;let position=unitCount;
+      for(const row of rows){const description=`${row.description}\n\n${name} · página ${row.page}: «${row.quote}»`;
+        if(row.kind==='unit')this.put('units',{id:randomUUID(),subjectId,title:row.title,objectives:description,position:position++,startsOn:null,endsOn:null,status:'pending',prerequisiteIds:[],conceptIds:[],curriculumIds:[],materialIds:[materialId],createdAt});
+        else this.put('curriculum',{id:randomUUID(),subjectId,kind:row.kind,code:row.code,title:row.title,description,conceptIds:[],relatedIds:[],createdAt});
+      }
+      this.event('programme.imported',subjectId,{materialId,rows:rows.length});
     });
   }
   private guidedContext(value: unknown) {
@@ -1314,7 +1336,7 @@ export class Store {
   }
   exportData(): string {
     this.checkBackupCapacity(this.backupUsage());
-    const json = JSON.stringify({ format: 'tutor-local', version: 18, exportedAt: new Date().toISOString(), tables: Object.fromEntries(TABLES.map(table => [table, this.list(table)])) });
+    const json = JSON.stringify({ format: 'tutor-local', version: 18, exportedAt: new Date().toISOString(), tables: Object.fromEntries(TABLES.map(table => [table, table === 'settings' ? this.list<Snapshot['settings'] & {id:string}>('settings').map(({aiProvider:_provider,cloudConsent:_consent,codexExecutable:_codex,claudeExecutable:_claude,...settings})=>settings) : this.list(table)])) });
     assertBackupJsonSize(json);
     try { validateBackup(json); }
     catch (cause) { throw new Error('No se ha creado la copia porque el historial contiene datos que no se podrían restaurar. El historial original se conserva.', { cause }); }

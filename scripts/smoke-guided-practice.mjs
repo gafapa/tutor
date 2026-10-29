@@ -1,3 +1,4 @@
+import { prepareTestWindow } from './test-profile.mjs';
 import { _electron as electron } from 'playwright';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -14,7 +15,7 @@ await mkdir(directory, { recursive: true }); await mkdir('test-results', { recur
 const env = { ...process.env, TUTOR_DATA_DIR: directory, TUTOR_SMOKE: '1' }; delete env.ELECTRON_RUN_AS_NODE;
 const launch = () => electron.launch({ executablePath: packaged ? resolve('release/win-unpacked/Tutor Local.exe') : require('electron'), args: packaged ? [] : ['.'], env, timeout: 60000 });
 let app, window, stopped = false; const errors = [];
-async function open() { app = await launch(); window = await app.firstWindow(); window.setDefaultTimeout(60000); window.on('pageerror', error => errors.push(error.message)); await window.waitForFunction(() => Boolean(window.tutor)); }
+async function open() { app = await launch(); window = await app.firstWindow(); await prepareTestWindow(window); window.setDefaultTimeout(60000); window.on('pageerror', error => errors.push(error.message)); await window.waitForFunction(() => Boolean(window.tutor)); }
 async function goToPlan(id) { await window.getByRole('button', { name: 'Cómo aprendo', exact: true }).click(); await window.getByRole('button', { name: /^Mis refuerzos/ }).click(); await window.getByLabel('Refuerzo a consultar', { exact: true }).selectOption(id); }
 try {
   await open();
@@ -43,7 +44,7 @@ try {
   snapshot = await window.evaluate(() => window.tutor.snapshot()); assert.equal(snapshot.interventionResponses.length, 2); assert.equal(snapshot.interventionResponses[0].hints, 1); assert.equal(await window.getByLabel(`Respuesta al refuerzo ${plan.activities[2].id}`, { exact: true }).count(), 0);
   await window.getByRole('button', { name: 'Mi plan', exact: true }).click(); await window.getByRole('region', { name: 'Mis comprobaciones de aprendizaje pendientes' }).waitFor();
   await window.getByRole("region", { name: "Mis comprobaciones de aprendizaje pendientes" }).scrollIntoViewIfNeeded(); await window.screenshot({path:`test-results/${prefix}guided-cycle-reminder.png`});
-  await window.getByRole("button",{name:"Mi espacio",exact:true}).click(); await window.getByRole("region", { name: "Mis comprobaciones de aprendizaje pendientes" }).waitFor(); await window.getByRole("button",{name:"Mi plan",exact:true}).click();
+  await window.getByRole("button",{name:"Mi seguimiento",exact:true}).click(); await window.getByRole("region", { name: "Mis comprobaciones de aprendizaje pendientes" }).waitFor(); await window.getByRole("button",{name:"Mi plan",exact:true}).click();
   const nextDay = Date.now() + 2 * 86400000;
   await app.evaluate((_electron, now) => { const NativeDate = Date; globalThis.Date = class extends NativeDate { constructor(...args) { if (args.length) super(...args); else super(now); } static now() { return now; } }; }, nextDay);
   await window.evaluate(now => { const NativeDate = Date; globalThis.Date = class extends NativeDate { constructor(...args) { if (args.length) super(...args); else super(now); } static now() { return now; } }; }, nextDay);

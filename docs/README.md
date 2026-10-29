@@ -1,5 +1,7 @@
 # Documentation
 
+Read [Moodle-first alpha 0.22](moodle-first-alpha.md) for the current onboarding, programme PDF, storage and AI-account contract. Historical verification records keep their original claims.
+
 ## Scope and development
 
 - [Product scope](product-scope.md): student-first, local executable, Moodle only, optional family sharing.
@@ -9,7 +11,7 @@
 
 ## Portable operation and data safety
 
-- [Windows portable](windows-portable.md): first launch, passwords, movement, updates and migration.
+- [Windows portable](windows-portable.md): first launch, storage, movement and updates.
 - [Backup safety](backup-safety.md): restoration limits and transactional validation.
 - [Read-only Moodle boundary](moodle-read-only-boundary.md): enforced allowlist and local-only actions.
 
@@ -24,6 +26,6 @@
 
 ## Qualification records
 
-Start with [Windows 0.21 verification](windows-0.21-verification.md). The [verification history](verification-history.md) links previous records and distinguishes historical installer checks from the portable ZIP. Local receipts/screenshots remain in ignored development directories; tracked documents summarize their scope and limits. Historical build provenance is preserved after later source commits.
+Start with [Windows 0.22 verification](windows-0.22-verification.md). The [verification history](verification-history.md) links previous records and distinguishes historical installer checks from the portable ZIP. Local receipts/screenshots remain in ignored development directories; tracked documents summarize their scope and limits. Historical build provenance is preserved after later source commits.
 
 The [synthetic Moodle fixture guide](../tests/fixtures/moodle-live/README.md) describes test courses and deliberately varied example answers. Course provisioning/grading are separate authorized development operations; Tutor Local cannot perform them.

@@ -1,3 +1,4 @@
+import { prepareTestWindow } from './test-profile.mjs';
 import { _electron as electron } from 'playwright';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -13,7 +14,7 @@ const launch = () => electron.launch({ executablePath: packaged ? resolve('relea
 const fixture = await startMoodle(); let app, window; const errors = [];
 try {
   await fixture.action('reset'); await fixture.action('history'); await fixture.action('quiz');
-  app = await launch(); window = await app.firstWindow(); window.setDefaultTimeout(60000); window.on('pageerror', error => errors.push(error.message));
+  app = await launch(); window = await app.firstWindow(); await prepareTestWindow(window); window.setDefaultTimeout(60000); window.on('pageerror', error => errors.push(error.message));
   assert.equal(await app.evaluate(({ app }) => app.getVersion()), JSON.parse(await readFile('package.json', 'utf8')).version);
   await window.evaluate(() => window.tutor.createDemo()); await window.reload({ waitUntil: 'domcontentloaded' });
   await window.getByRole('button', { name: 'Mi Moodle', exact: true }).click();
@@ -63,7 +64,7 @@ try {
   await window.screenshot({ path: `test-results/${prefix}moodle-comparison-quiz.png` });
   const after = await window.evaluate(() => window.tutor.snapshot());
   for (const key of ['lmsItems', 'lmsVersions', 'portfolio', 'attempts', 'tasks']) assert.deepEqual(after[key], before[key], key);
-  await app.close(); app = await launch(); window = await app.firstWindow(); window.on('pageerror', error => errors.push(error.message));
+  await app.close(); app = await launch(); window = await app.firstWindow(); await prepareTestWindow(window); window.on('pageerror', error => errors.push(error.message));
   await window.getByRole('button', { name: 'Mi Moodle', exact: true }).click(); await open('Comparar dos intentos');
   await compare().getByRole('region', { name: 'Segundo intento: respuesta', exact: true }).getByText('Mi intento revisado: 2 * 2 * 2 * 2 = 16 combinaciones.', { exact: true }).waitFor();
   assert.deepEqual(errors, []);

@@ -7,7 +7,7 @@ import { createServer } from 'node:net';
 import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import type { ModelStatus } from '../shared/types.js';
-import { MODEL } from './model-config.js';
+import { MODEL, type ModelDefinition } from './model-config.js';
 
 async function freePort(): Promise<number> {
   const server = createServer();
@@ -40,16 +40,18 @@ export class LocalModel {
   private stopped = false;
   readonly modelPath: string;
 
-  constructor(private modelDirectory: string, private runtimeDirectory: string) {
-    this.modelPath = join(modelDirectory, MODEL.filename);
-    const installed = existsSync(this.modelPath) && statSync(this.modelPath).size === MODEL.bytes;
+  constructor(private modelDirectory: string, private runtimeDirectory: string, private definition: ModelDefinition = MODEL) {
+    this.modelPath = join(modelDirectory, this.definition.filename);
+    const installed = this.assets.every(asset => existsSync(join(modelDirectory, asset.filename)) && statSync(join(modelDirectory, asset.filename)).size === asset.bytes);
     this.status = {
       state: installed ? 'ready' : 'missing', progress: installed ? 100 : 0,
-      downloadedBytes: installed ? MODEL.bytes : 0, totalBytes: MODEL.bytes,
+      downloadedBytes: installed ? this.totalBytes : 0, totalBytes: this.totalBytes,
       message: installed ? 'El tutor está preparado para trabajar sin conexión.' : 'Activa la IA local para conversar con tus materiales.',
-      modelName: MODEL.name, ramGB: Math.round(totalmem() / 1073741824)
+      modelName: this.definition.name, ramGB: Math.round(totalmem() / 1073741824)
     };
   }
+  private get assets() { return [this.definition, ...(this.definition.projector ? [this.definition.projector] : [])]; }
+  private get totalBytes() { return this.assets.reduce((total, asset) => total + asset.bytes, 0); }
   getStatus(): ModelStatus { return { ...this.status }; }
   async download(): Promise<void> {
     if (this.downloadTask) return this.downloadTask;
@@ -59,27 +61,32 @@ export class LocalModel {
   }
   private async performDownload() {
     mkdirSync(this.modelDirectory, { recursive: true });
-    const partial = `${this.modelPath}.part`;
+    let partial: string | undefined;
     this.downloadController = new AbortController();
     this.status = { ...this.status, state: 'downloading', progress: 0, downloadedBytes: 0, message: 'Descargando el modelo. Tus materiales permanecen en este ordenador.' };
     try {
-      const response = await fetch(MODEL.url, { signal: this.downloadController.signal, redirect: 'follow' });
+      for (const asset of this.assets) {
+      const target = join(this.modelDirectory, asset.filename);
+      if (existsSync(target) && statSync(target).size === asset.bytes && await fileHash(target) === asset.sha256) { this.status.downloadedBytes += asset.bytes; continue; }
+      partial = `${target}.part`;
+      const response = await fetch(asset.url, { signal: this.downloadController.signal, redirect: 'follow' });
       if (!response.ok || !response.body) throw new Error('No se ha podido descargar el modelo. Comprueba la conexión y vuelve a intentarlo.');
       const hash = createHash('sha256');
       const tracker = new Transform({ transform: (chunk: Buffer, _encoding, callback) => {
         hash.update(chunk);
         this.status.downloadedBytes += chunk.length;
-        this.status.progress = Math.min(99, Math.round(this.status.downloadedBytes / MODEL.bytes * 100));
+        this.status.progress = Math.min(99, Math.round(this.status.downloadedBytes / this.totalBytes * 100));
         callback(null, chunk);
       } });
       await pipeline(Readable.fromWeb(response.body as never), tracker, createWriteStream(partial), { signal: this.downloadController.signal });
       this.status.message = 'Comprobando la integridad del modelo…';
-      if (statSync(partial).size !== MODEL.bytes || hash.digest('hex') !== MODEL.sha256) throw new Error('La descarga está incompleta o no coincide con el modelo esperado. Vuelve a intentarlo.');
-      renameSync(partial, this.modelPath);
+      if (statSync(partial).size !== asset.bytes || hash.digest('hex') !== asset.sha256) throw new Error('La descarga está incompleta o no coincide con el modelo esperado. Vuelve a intentarlo.');
+      renameSync(partial, target); partial = undefined;
+      }
       this.verified = true;
       this.status = { ...this.status, state: 'ready', progress: 100, message: 'La IA local está lista. Puedes desconectar Internet.' };
     } catch (error) {
-      if (existsSync(partial)) unlinkSync(partial);
+      if (partial && existsSync(partial)) unlinkSync(partial);
       if (this.downloadController.signal.aborted) {
         this.status = { ...this.status, state: 'missing', progress: 0, downloadedBytes: 0, message: 'Descarga cancelada. Puedes iniciarla cuando quieras.' };
         return;
@@ -103,7 +110,7 @@ export class LocalModel {
     try {
       this.status.message = 'Preparando el tutor en tu ordenador…';
       if (!this.verified) {
-        if (await fileHash(this.modelPath) !== MODEL.sha256) throw new Error('El modelo local no supera la comprobación de integridad. Elimina el archivo del modelo y vuelve a descargarlo.');
+        if (!(await Promise.all(this.assets.map(async asset => existsSync(join(this.modelDirectory, asset.filename)) && await fileHash(join(this.modelDirectory, asset.filename)) === asset.sha256))).every(Boolean)) throw new Error('El modelo local no supera la comprobación de integridad. Elimina el archivo del modelo y vuelve a descargarlo.');
         this.verified = true;
       }
       if (this.stopped) throw new Error('La aplicación se está cerrando.');
@@ -111,7 +118,7 @@ export class LocalModel {
       if (!existsSync(executable)) throw new Error('Falta el motor de IA en esta instalación. Reinstala Tutor Local.');
       const port = await freePort();
       this.endpoint = `http://127.0.0.1:${port}`;
-      const child = spawn(executable, ['--model', this.modelPath, '--host', '127.0.0.1', '--port', String(port), '--ctx-size', '8192', '--threads', String(Math.max(1, Math.min(6, availableParallelism() - 1))), '--n-gpu-layers', '0', '--api-key', this.apiKey, '--no-webui', '--offline', '--jinja', '--log-disable'], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], cwd: this.runtimeDirectory });
+      const child = spawn(executable, ['--model', this.modelPath, ...(this.definition.vision ? ['--reasoning', 'off'] : []), ...(this.definition.projector ? ['--mmproj', join(this.modelDirectory, this.definition.projector.filename)] : []), '--host', '127.0.0.1', '--port', String(port), '--ctx-size', '8192', '--threads', String(Math.max(1, Math.min(6, availableParallelism() - 1))), '--n-gpu-layers', '0', '--api-key', this.apiKey, '--no-webui', '--offline', '--jinja', '--log-disable'], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], cwd: this.runtimeDirectory });
       this.child = child;
       let failed = '';
       child.stdout?.on('data', () => {});
@@ -143,7 +150,8 @@ export class LocalModel {
       throw error;
     }
   }
-  async complete(messages: { role: string; content: string }[], options: { schema?: Record<string, unknown>; maxTokens?: number; status?: string } = {}): Promise<string> {
+  async complete(messages: { role: string; content: string }[], options: { schema?: Record<string, unknown>; maxTokens?: number; status?: string; image?: { mime: string; base64: string } } = {}): Promise<string> {
+    if (options.image && !this.definition.vision) throw new Error('El modelo elegido solo admite texto. Selecciona Gemma 4 en Ajustes para leer imágenes.');
     if (this.chatController) throw new Error('Espera a que termine la consulta anterior.');
     const controller = new AbortController();
     this.chatController = controller;
@@ -153,12 +161,12 @@ export class LocalModel {
       if (options.status) this.status.message = options.status;
       const response = await fetch(`${this.endpoint}/v1/chat/completions`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.apiKey}` },
-        body: JSON.stringify({ messages, temperature: options.schema ? 0 : 0.3, max_tokens: options.maxTokens ?? 420, stream: false, ...(options.schema ? { response_format: { type: 'json_object', schema: options.schema } } : {}) }),
+        body: JSON.stringify({ messages: messages.map((message, index) => ({ ...message, content: options.image && index === messages.length - 1 ? [{ type: 'image_url', image_url: { url: `data:${options.image.mime};base64,${options.image.base64}` } }, { type: 'text', text: message.content }] : message.content + (this.definition.name.startsWith('Qwen 3') ? '\n/no_think' : '') })), chat_template_kwargs: {enable_thinking:false}, temperature: options.schema || options.image ? 0 : 0.3, max_tokens: options.maxTokens ?? 420, stream: false, ...(options.schema ? { response_format: { type: 'json_object', schema: options.schema } } : {}) }),
         signal: AbortSignal.any([controller.signal, AbortSignal.timeout(180000)])
       });
       if (!response.ok) throw new Error('El tutor local no ha podido completar la respuesta. Prueba con una pregunta más breve.');
       const data = await response.json() as { choices?: { message?: { content?: string }; finish_reason?: string }[] };
-      if (options.schema && data.choices?.[0]?.finish_reason === 'length') throw new Error('La revisión automática no pudo terminar dentro del límite de respuesta. No se han guardado resultados incompletos.');
+      if ((options.schema || options.image) && data.choices?.[0]?.finish_reason === 'length') throw new Error('La revisión automática no pudo terminar dentro del límite de respuesta. No se han guardado resultados incompletos.');
       const text = data.choices?.[0]?.message?.content?.trim();
       if (!text) throw new Error('El tutor ha devuelto una respuesta vacía. Vuelve a intentarlo.');
       return text;

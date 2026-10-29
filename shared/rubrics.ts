@@ -25,7 +25,7 @@ export interface RubricResult {
   criterionId: string; levelId: string | null; feedback: string; nextStep: string; quotes: RubricQuote[];
 }
 export interface RubricReview {
-  id: string; subjectId: string; submissionId: string; origin: 'self' | 'local-ai';
+  id: string; subjectId: string; submissionId: string; origin: 'self' | 'local-ai' | 'account-ai';
   supersedesId: string | null; results: RubricResult[]; reflection: string; nextStep: string;
   model: { name: string; promptVersion: string; workState?: RubricWorkState; coverage: { start: number; end: number }[] } | null;
   createdAt: string;

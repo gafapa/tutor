@@ -1,4 +1,6 @@
-export const MODEL = {
+export interface ModelAsset { filename: string; url: string; bytes: number; sha256: string; }
+export interface ModelDefinition extends ModelAsset { name: string; vision?: boolean; projector?: ModelAsset; }
+export const MODEL: ModelDefinition = {
   name: 'Qwen 2.5 · 1.5B',
   filename: 'qwen2.5-1.5b-instruct-q4_k_m.gguf',
   url: 'https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/91cad51170dc346986eccefdc2dd33a9da36ead9/qwen2.5-1.5b-instruct-q4_k_m.gguf?download=true',

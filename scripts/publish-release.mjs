@@ -25,7 +25,7 @@ assert.equal(bytes.length, artifact.bytes);
 assert.equal(sha256, artifact.sha256, 'El artefacto descargado no coincide con el probado.');
 assert.equal((await readFile(join(directory, filename + '.sha256'), 'utf8')).trim(), `${sha256}  ${filename}`);
 if (portable) {
-  assert.equal(manifest.movedFolderReopened, true); assert.equal(manifest.passwordEncryptedData, true); assert.ok(manifest.checks.includes('portable'));
+  assert.equal(manifest.movedFolderReopened, true); assert.equal(manifest.passwordEncryptedData, false); assert.ok(manifest.checks.includes('portable'));
 } else {
   assert.equal(manifest.silentInstallAndUninstall, true); assert.equal(manifest.profilePreservedOnUninstall, true);
 }

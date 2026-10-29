@@ -1,3 +1,4 @@
+import { prepareTestWindow } from './test-profile.mjs';
 import { _electron as electron } from 'playwright';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -12,7 +13,7 @@ const env = { ...process.env, TUTOR_DATA_DIR: directory, TUTOR_SMOKE: '1' }; del
 const app = await electron.launch({ executablePath: packaged ? resolve('release/win-unpacked/Tutor Local.exe') : require('electron'), args: packaged ? [] : ['.'], env, timeout: 90000 });
 let progressTimer; const errors = [];
 try {
-  const window = await app.firstWindow(); window.setDefaultTimeout(45000); window.on('pageerror', error => errors.push(error.message));
+  const window = await app.firstWindow(); await prepareTestWindow(window); window.setDefaultTimeout(45000); window.on('pageerror', error => errors.push(error.message));
   await window.getByRole('button', { name: 'Explorar un ejemplo', exact: true }).click();
   await window.getByRole('heading', { name: 'Un poco de potencias de 2.' }).waitFor();
   const seeded = await window.evaluate(async () => {

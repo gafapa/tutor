@@ -7,7 +7,7 @@ import { join, resolve } from 'node:path';
 import { Store } from '../electron/store';
 import { imageDimensions } from '../electron/image-header';
 import { ocrOptions, ocrReviewInput, validateCapture } from '../electron/ocr-validation';
-import { OCR_ASSETS, OCR_VERSION } from '../electron/ocr-config';
+import { VISION_VERSION } from '../electron/ocr-config';
 import { workContext } from '../electron/pedagogy';
 import { retrieve } from '../electron/retrieval';
 import { encodeBackup, decodeBackup } from '../electron/backup';
@@ -23,7 +23,7 @@ const hash = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex')
 function capture(subjectId: string): Capture {
   const canvas = createCanvas(300, 200), ctx = canvas.getContext('2d'); ctx.fillStyle = 'white'; ctx.fillRect(0, 0, 300, 200); ctx.fillStyle = 'black'; ctx.font = '30px Arial'; ctx.fillText('2 + 2 = 5', 20, 90);
   const bytes = canvas.encodeSync('jpeg', 88);
-  return { id: randomUUID(), subjectId, name: 'Ejercicio.png', sourceFormat: 'image', sourcePage: 1, sourceHash: hash(Buffer.from('documento original')), image: { mime: 'image/jpeg', base64: bytes.toString('base64'), width: 300, height: 200, hash: hash(bytes) }, recognition: { engine: 'tesseract-local', version: OCR_VERSION, language: 'spa', modelHashes: [OCR_ASSETS[0].sha256], text: '2 + 2 = S', confidence: 80, words: [{ text: 'S', confidence: 20, box: { x0: 10, y0: 20, x1: 25, y1: 50 } }] }, createdAt: new Date().toISOString() };
+  return { id: randomUUID(), subjectId, name: 'Ejercicio.png', sourceFormat: 'image', sourcePage: 1, sourceHash: hash(Buffer.from('documento original')), image: { mime: 'image/jpeg', base64: bytes.toString('base64'), width: 300, height: 200, hash: hash(bytes) }, recognition: { engine: 'multimodal', version: VISION_VERSION, provider: 'local', model: 'Gemma 4 E2B', language: 'spa', modelHashes: ['a'.repeat(64),'b'.repeat(64)], text: '2 + 2 = S', confidence: null, words: [] }, createdAt: new Date().toISOString() };
 }
 const input = (more: Partial<OcrReviewInput> = {}): OcrReviewInput => ({ text: '2 + 2 = 5', confirmed: true, destination: 'material', name: 'Cálculo revisado', statement: '', conceptId: null, ...more });
 async function opened() { await mkdir(root, { recursive: true }); const path = join(root, randomUUID() + '.tutor'), key = randomBytes(32), store = await Store.open(path, key, wasm); const subject = store.createDemo(); return { path, key, store, subject }; }
@@ -46,7 +46,7 @@ test('cabeceras de imágenes verifican dimensiones y rechazan animaciones y tama
 });
 test('imagen, modelo y posiciones OCR deben coincidir con sus comprobaciones', () => {
   const row = capture(randomUUID()); assert.doesNotThrow(() => validateCapture(row));
-  for (const mutate of [(r: Capture) => { r.image.hash = '0'.repeat(64); }, (r: Capture) => { r.image.width++; }, (r: Capture) => { r.recognition.modelHashes = [OCR_ASSETS[2].sha256]; }, (r: Capture) => { r.recognition.words[0].box.x1 = 301; }, (r: Capture) => { r.image.base64 += '='; }]) { const bad = structuredClone(row); mutate(bad); assert.throws(() => validateCapture(bad)); }
+  for (const mutate of [(r: Capture) => { r.image.hash = '0'.repeat(64); }, (r: Capture) => { r.image.width++; }, (r: Capture) => { r.recognition.modelHashes = []; }, (r: Capture) => { r.recognition.words = [{text:'invented',confidence:100,box:{x0:0,y0:0,x1:301,y1:50}}]; }, (r: Capture) => { r.image.base64 += '='; }]) { const bad = structuredClone(row); mutate(bad); assert.throws(() => validateCapture(bad)); }
 });
 test('captura confirmada guarda original cifrado, fuente y contexto de la asignatura', async () => {
   const { store, subject, path } = await opened();

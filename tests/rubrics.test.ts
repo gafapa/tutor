@@ -175,3 +175,12 @@ test('la fragmentación conserva todos los caracteres y los espacios solos no ju
     assert.equal(rubricFragments('Cada bit tiene dos valores. El cálculo incorrecto aparece después.')[0].text, 'Cada bit tiene dos valores. El cálculo incorrecto aparece después.');
   } finally { store.close(); }
 });
+
+test('account AI rubric proposals retain external provenance through backup restoration without changing mastery', async () => {
+  const {store,submission,result}=await fixture();
+  try { const proposal=store.saveRubricProposal(submission.id,[result],'Claude account','attempt','account-ai');
+    assert.equal(proposal.origin,'account-ai');store.importData(store.exportData());
+    assert.equal(store.snapshot().rubricReviews.find(row=>row.id===proposal.id)!.origin,'account-ai');
+    assert.ok(store.snapshot().estimates.every(row=>row.status==='unseen'));
+  } finally {store.close();}
+});

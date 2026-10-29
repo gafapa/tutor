@@ -1,3 +1,4 @@
+import { prepareTestWindow } from './test-profile.mjs';
 import { _electron as electron } from 'playwright';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -25,7 +26,7 @@ async function waitFinished() {
   await window.waitForFunction(async()=>(await window.tutor.snapshot()).lmsConnections.length===2);
 }
 try {
-  app=await launch();window=await app.firstWindow();window.setDefaultTimeout(30000);window.on('pageerror',error=>errors.push(error.message));
+  app=await launch();window=await app.firstWindow(); await prepareTestWindow(window);window.setDefaultTimeout(30000);window.on('pageerror',error=>errors.push(error.message));
   await window.getByRole('button',{name:'Mi Moodle',exact:true}).click();
   await window.getByRole('heading',{name:'Tus cursos pueden ser tus asignaturas',exact:true}).waitFor();
   await openSelection();
@@ -78,7 +79,7 @@ try {
   assert.equal(copied.portfolio[0].reflection,'Comprobaré el resultado con otro método.');assert.equal(copied.attempts.length,0);
   await window.screenshot({path:`test-results/${prefix}moodle-courses-portfolio.png`});
   await window.getByRole('button',{name:'Cerrar',exact:true}).click();
-  await app.close();app=await launch();window=await app.firstWindow();window.setDefaultTimeout(30000);window.on('pageerror',error=>errors.push(error.message));
+  await app.close();app=await launch();window=await app.firstWindow(); await prepareTestWindow(window);window.setDefaultTimeout(30000);window.on('pageerror',error=>errors.push(error.message));
   await window.getByRole('button',{name:'Mi Moodle',exact:true}).click();snapshot=await window.evaluate(()=>window.tutor.snapshot());
   assert.ok(snapshot.lmsConnections.every(row=>row.hasCredentials));assert.equal(snapshot.subjects.length,2);
   const items=snapshot.lmsItems, exported=join(directory,'courses.tutor'),password='Synthetic portable backup password';

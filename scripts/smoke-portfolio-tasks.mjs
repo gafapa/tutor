@@ -1,3 +1,4 @@
+import { prepareTestWindow } from './test-profile.mjs';
 import { _electron as electron } from 'playwright';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -11,7 +12,7 @@ const env = { ...process.env, TUTOR_DATA_DIR: directory, TUTOR_SMOKE: '1' }; del
 const launch = () => electron.launch({ executablePath: packaged ? resolve('release/win-unpacked/Tutor Local.exe') : require('electron'), args: packaged ? [] : ['.'], env, timeout: 60000 });
 let app, window; const errors = [];
 try {
-  app = await launch(); window = await app.firstWindow(); window.setDefaultTimeout(60000); window.on('pageerror', error => errors.push(error.message));
+  app = await launch(); window = await app.firstWindow(); await prepareTestWindow(window); window.setDefaultTimeout(60000); window.on('pageerror', error => errors.push(error.message));
   assert.equal(await app.evaluate(({ app }) => app.getVersion()), JSON.parse(await readFile('package.json', 'utf8')).version);
   const subject = await window.evaluate(() => window.tutor.createDemo());
   const entry = await window.evaluate(subjectId => window.tutor.savePortfolio({ subjectId, title: 'Comparación para mi siguiente práctica', content: 'Datos sintéticos: primer intento 12, segundo intento 16.', reflection: 'Qué he cambiado\nRevisé los factores.\n\nQué practicaré después\nPracticaré cinco bits sin ayuda.', kind: 'work', conceptIds: [], evidenceIds: [] }), subject.id);
@@ -34,7 +35,7 @@ try {
   const backup = join(directory, 'practice.tutor'), password = 'Synthetic portfolio task backup password';
   await app.evaluate(({ dialog }, path) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: path }); }, backup); await window.evaluate(password => window.tutor.exportData({ format: 'encrypted', password }), password);
   await app.evaluate(({ dialog }, path) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [path] }); }, backup); await window.evaluate(password => window.tutor.importData({ password }), password);
-  await app.close(); app = await launch(); window = await app.firstWindow(); window.on('pageerror', error => errors.push(error.message)); const restored = await window.evaluate(() => window.tutor.snapshot()); const restoredTask = restored.tasks.find(row => row.id === task.id); assert.equal(restoredTask.portfolioSource.entryId, null); assert.equal(restoredTask.portfolioSource.content, entry.content); assert.equal(restoredTask.status, 'completed'); assert.equal(restored.portfolio.length, 0); assert.deepEqual(restored.attempts, before.attempts); assert.deepEqual(errors, []);
+  await app.close(); app = await launch(); window = await app.firstWindow(); await prepareTestWindow(window); window.on('pageerror', error => errors.push(error.message)); const restored = await window.evaluate(() => window.tutor.snapshot()); const restoredTask = restored.tasks.find(row => row.id === task.id); assert.equal(restoredTask.portfolioSource.entryId, null); assert.equal(restoredTask.portfolioSource.content, entry.content); assert.equal(restoredTask.status, 'completed'); assert.equal(restored.portfolio.length, 0); assert.deepEqual(restored.attempts, before.attempts); assert.deepEqual(errors, []);
   await writeFile(`test-results/${prefix}portfolio-tasks-verification.json`, JSON.stringify({ checkedAt: new Date().toISOString(), packaged, localSyntheticPortfolio: true, explicitTitleDateAndDuration: true, appearsInDailyPlan: true, authoritativeSourceSnapshot: true, pendingDuplicateSuppressed: true, completionWithoutMastery: true, detachedSourceVisible: true, encryptedBackupAndRestart: true, noMoodleConnectionOrWrite: true, narrowDialogNoOverflow: true, errors }, null, 2));
   console.log('Local portfolio practice tasks verified through creation, completion, source removal and encrypted restart.');
 } catch (error) { await window?.screenshot({ path: `test-results/${prefix}portfolio-tasks-failure.png` }).catch(() => {}); throw error; }

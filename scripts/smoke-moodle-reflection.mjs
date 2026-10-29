@@ -1,3 +1,4 @@
+import { prepareTestWindow } from './test-profile.mjs';
 import { _electron as electron } from 'playwright';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -13,7 +14,7 @@ const launch = () => electron.launch({ executablePath: packaged ? resolve('relea
 const fixture = await startMoodle(); let app, window; const errors = [];
 try {
   await fixture.action('reset'); await fixture.action('history'); await fixture.action('quiz');
-  app = await launch(); window = await app.firstWindow(); window.setDefaultTimeout(60000); window.on('pageerror', error => errors.push(error.message));
+  app = await launch(); window = await app.firstWindow(); await prepareTestWindow(window); window.setDefaultTimeout(60000); window.on('pageerror', error => errors.push(error.message));
   assert.equal(await app.evaluate(({ app }) => app.getVersion()), JSON.parse(await readFile('package.json', 'utf8')).version);
   await window.evaluate(() => window.tutor.createDemo()); await window.reload({ waitUntil: 'domcontentloaded' });
   await window.getByRole('button', { name: 'Mi Moodle', exact: true }).click(); await window.getByRole('button', { name: 'Conectar un curso', exact: true }).click();
@@ -51,7 +52,7 @@ try {
   await app.evaluate(({ dialog }, path) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: path }); }, backup); await window.evaluate(password => window.tutor.exportData({ format: 'encrypted', password }), password);
   await window.evaluate(id => window.tutor.clearMoodleData(id), assignment.connectionId); const cleared = await window.evaluate(() => window.tutor.snapshot()); assert.equal(cleared.lmsItems.length, 0); assert.deepEqual(cleared.portfolio, snapshot.portfolio);
   await app.evaluate(({ dialog }, path) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [path] }); }, backup); await window.evaluate(password => window.tutor.importData({ password }), password);
-  await app.close(); app = await launch(); window = await app.firstWindow(); window.on('pageerror', error => errors.push(error.message)); const restored = await window.evaluate(() => window.tutor.snapshot()); assert.deepEqual(restored.portfolio, snapshot.portfolio); assert.deepEqual(restored.lmsItems, before.lmsItems); assert.equal(restored.attempts.length, 0); assert.deepEqual(errors, []);
+  await app.close(); app = await launch(); window = await app.firstWindow(); await prepareTestWindow(window); window.on('pageerror', error => errors.push(error.message)); const restored = await window.evaluate(() => window.tutor.snapshot()); assert.deepEqual(restored.portfolio, snapshot.portfolio); assert.deepEqual(restored.lmsItems, before.lmsItems); assert.equal(restored.attempts.length, 0); assert.deepEqual(errors, []);
   const personalTask = await window.evaluate(portfolioId => window.tutor.createPortfolioTask({ portfolioId, title: 'Practicar cinco bits desde mi reflexión', notes: 'Repetiré el cálculo sin consultar la entrega.', dueDate: null, estimatedMinutes: 15 }), entry.id);
   assert.equal(personalTask.lms, undefined); assert.equal(personalTask.portfolioSource.content, entry.content); assert.equal(personalTask.portfolioSource.reflection, entry.reflection); assert.deepEqual((await window.evaluate(() => window.tutor.snapshot())).lmsItems, before.lmsItems);
   await writeFile(`test-results/${prefix}moodle-reflection-verification.json`, JSON.stringify({ checkedAt: new Date().toISOString(), packaged, realIsolatedMoodle: true, ownAssignmentAndQuizSources: true, offlineAfterCredentialRemovalAndServerStop: true, structuredReflections: true, personalTaskFromCopiedMoodleWork: true, draftsRetainedWhileSwitching: true, authoritativeOriginalsAndFeedback: true, duplicateCopySuppressed: true, sourcesTasksAndMasteryUnchanged: true, copiesSurviveMoodleRemoval: true, encryptedBackupAndRestart: true, narrowDialogNoOverflow: true, errors }, null, 2));

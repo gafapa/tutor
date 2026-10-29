@@ -1,3 +1,4 @@
+import { prepareTestWindow } from './test-profile.mjs';
 import { _electron as electron } from 'playwright';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -12,7 +13,7 @@ const launch = () => electron.launch({ executablePath: packaged ? resolve('relea
 const answerSheet = { 'Potencias de 2:0': '32', 'Potencias de 2:1': '64', 'Potencias de 2:2': '7', 'Potencias de 2:3': '16', 'Sistema binario:0': '10', 'Sistema binario:1': '1101', 'Sistema binario:2': '15', 'Subnetting:0': '64', 'Subnetting:1': '30', 'Subnetting:2': '26' };
 let app = await launch(); const errors = [];
 try {
-  let window = await app.firstWindow(); window.setDefaultTimeout(45000); window.on('pageerror', error => errors.push(error.message));
+  let window = await app.firstWindow(); await prepareTestWindow(window); window.setDefaultTimeout(45000); window.on('pageerror', error => errors.push(error.message));
   await window.getByRole('button', { name: 'Explorar un ejemplo', exact: true }).click();
   await window.getByRole('heading', { name: 'Un poco de potencias de 2.' }).waitFor();
   await window.evaluate(async () => {
@@ -63,7 +64,7 @@ try {
   await window.getByText('Respuesta guardada en este ordenador.', { exact: true }).waitFor();
   await window.waitForFunction(async () => (await window.tutor.snapshot()).mockExams[0].answers[1].value === '99999');
   await window.screenshot({ path: `test-results/${prefix}mock-running.png` });
-  await app.close(); app = await launch(); window = await app.firstWindow(); window.setDefaultTimeout(45000); window.on('pageerror', error => errors.push(error.message));
+  await app.close(); app = await launch(); window = await app.firstWindow(); await prepareTestWindow(window); window.setDefaultTimeout(45000); window.on('pageerror', error => errors.push(error.message));
   await window.getByLabel('Respuesta al simulacro').waitFor(); assert.equal(await window.getByLabel('Respuesta al simulacro').inputValue(), '99999');
   snapshot = await window.evaluate(() => window.tutor.snapshot());
   assert.equal(snapshot.mockExams[0].id, exam.id); assert.equal(snapshot.mockExams[0].answers[0].value, answerSheet[first.exerciseId]);

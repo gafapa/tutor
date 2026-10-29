@@ -1,3 +1,4 @@
+import { prepareTestWindow } from './test-profile.mjs';
 import { _electron as electron } from 'playwright';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -15,7 +16,7 @@ const launch = () => electron.launch({ executablePath: packaged ? resolve('relea
 let app = await launch();
 const errors = [];
 try {
-  let window = await app.firstWindow(); window.setDefaultTimeout(45000); window.on('pageerror', error => errors.push(error.message));
+  let window = await app.firstWindow(); await prepareTestWindow(window); window.setDefaultTimeout(45000); window.on('pageerror', error => errors.push(error.message));
   await window.getByRole('button', { name: 'Explorar un ejemplo', exact: true }).click();
   await window.getByRole('heading', { name: 'Un poco de potencias de 2.' }).waitFor();
   await window.getByRole('button', { name: 'Unidades y currículo', exact: true }).click();
@@ -121,7 +122,7 @@ try {
   const before = await window.evaluate(() => window.tutor.snapshot());
   await window.evaluate(() => window.tutor.eraseData());
   await window.evaluate(() => window.tutor.importData({ password: 'prueba-educacion-portable' }));
-  await app.close(); app = await launch(); window = await app.firstWindow(); window.setDefaultTimeout(45000); window.on('pageerror', error => errors.push(error.message));
+  await app.close(); app = await launch(); window = await app.firstWindow(); await prepareTestWindow(window); window.setDefaultTimeout(45000); window.on('pageerror', error => errors.push(error.message));
   const after = await window.evaluate(() => window.tutor.snapshot());
   for (const key of ['curriculum', 'units', 'tasks', 'flashcards', 'cardRevisions', 'cardReviews', 'portfolio', 'attempts']) assert.deepEqual(after[key], before[key], `Restaurar y reiniciar conserva ${key}.`);
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setBounds({ width: 960, height: 700 }));

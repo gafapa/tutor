@@ -1,3 +1,4 @@
+import { prepareTestWindow } from './test-profile.mjs';
 import { _electron as electron } from 'playwright';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -15,7 +16,7 @@ delete env.ELECTRON_RUN_AS_NODE;
 const app = await electron.launch({ executablePath: packaged ? resolve('release/win-unpacked/Tutor Local.exe') : require('electron'), args: packaged ? [] : ['.'], env, timeout: 60000 });
 let progressTimer;
 try {
-  const window = await app.firstWindow();
+  const window = await app.firstWindow(); await prepareTestWindow(window);
   await window.getByRole('heading', { name: 'Aprender empieza' }).waitFor();
   await window.getByRole('button', { name: 'Explorar un ejemplo' }).click();
   await window.getByRole('heading', { name: 'Un poco de potencias de 2.' }).waitFor();

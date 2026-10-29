@@ -1,3 +1,4 @@
+import { prepareTestWindow } from './test-profile.mjs';
 import {_electron as electron} from 'playwright';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
@@ -14,7 +15,7 @@ const env={...process.env,TUTOR_DATA_DIR:directory,TUTOR_SMOKE:'1'};delete env.E
 const launch=()=>electron.launch({executablePath:packaged?resolve('release/win-unpacked/Tutor Local.exe'):require('electron'),args:packaged?[]:['.'],env,timeout:60000});
 let app,window;const errors=[];
 try{
-  app=await launch();assert.equal(await app.evaluate(({app})=>app.getVersion()),version);window=await app.firstWindow();window.setDefaultTimeout(120000);window.on('pageerror',error=>errors.push(error.message));
+  app=await launch();assert.equal(await app.evaluate(({app})=>app.getVersion()),version);window=await app.firstWindow(); await prepareTestWindow(window);window.setDefaultTimeout(120000);window.on('pageerror',error=>errors.push(error.message));
   await window.getByRole('button',{name:'Mi Moodle',exact:true}).click();
   await window.getByRole('button',{name:'Conectar varias asignaturas',exact:true}).click();
   await window.getByLabel('Dirección de Moodle').fill('https://aula.gallego.top');
@@ -59,7 +60,7 @@ try{
   const copied=await window.evaluate(()=>window.tutor.snapshot());assert.equal(copied.portfolio.length,1);assert.match(copied.portfolio[0].content,/Evaluación sintética para pruebas/);assert.equal(copied.attempts.length,0);
   await window.screenshot({path:`test-results/${prefix}-portfolio.png`});
   await window.getByRole('button',{name:'Cerrar',exact:true}).click();
-  await app.close();app=await launch();window=await app.firstWindow();window.setDefaultTimeout(60000);window.on('pageerror',error=>errors.push(error.message));
+  await app.close();app=await launch();window=await app.firstWindow(); await prepareTestWindow(window);window.setDefaultTimeout(60000);window.on('pageerror',error=>errors.push(error.message));
   const reopened=await window.evaluate(()=>window.tutor.snapshot());
   assert.ok(reopened.lmsConnections.every(row=>row.hasCredentials));assert.deepEqual(reopened.lmsItems,snapshot.lmsItems);assert.equal(reopened.subjects.length,2);assert.deepEqual(errors,[]);
   const attachmentActivity=reopened.lmsItems.find(row=>row.data.kind==='activity'&&row.data.title==='Prueba técnica · Archivos de entrega');

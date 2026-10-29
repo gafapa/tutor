@@ -3,6 +3,7 @@ import { BookOpen, LayoutDashboard, Files, MessagesSquare, PencilLine, ChartNoAx
 import type { Snapshot, Subject, SubjectInput } from '../shared/types';
 import { Modal, PrivacyChip, Spinner, errorMessage, type Page, type PageProps } from './ui';
 import Home from './pages/Home';
+import Onboarding from './components/Onboarding';
 import Materials from './pages/Materials';
 import Tutor from './pages/Tutor';
 import Practice from './pages/Practice';
@@ -26,7 +27,7 @@ import Goals from './pages/Goals';
 import { dayKey } from '../shared/calendar';
 
 const NAV = [
-  { id: 'home', label: 'Mi espacio', icon: LayoutDashboard },
+  { id: 'home', label: 'Mi seguimiento', icon: LayoutDashboard },
   { id: 'plan', label: 'Mi plan', icon: CalendarDays },
   { id: 'diagnostic', label: 'Punto de partida', icon: Compass },
   { id: 'curriculum', label: 'Unidades y currículo', icon: Layers },
@@ -113,7 +114,7 @@ export default function App() {
       <div className="sidebar-bottom"><div className="local-note"><ShieldCheck size={20} /><div><strong>Tu aprendizaje es tuyo.</strong><span>Guardado en este ordenador.</span></div><Leaf className="local-leaf" size={60} /></div><button className={`nav-item ${page === 'settings' ? 'active' : ''}`} disabled={Boolean(activeExam)} onClick={() => navigate('settings')}><Settings size={19} /> Ajustes</button><div className="profile"><span className="avatar">{data.settings.name.slice(0, 1).toUpperCase() || 'T'}</span><div><strong>{data.settings.name || 'Mi perfil'}</strong><span>Cuenta local · sin registro</span></div><button className="icon-button" aria-label="Editar mi perfil" disabled={Boolean(activeExam)} onClick={() => navigate('settings')}><ArrowUpRight size={17} /></button></div></div>
     </aside>
     <div className="workspace"><header className="topbar"><div className="breadcrumbs">Mi espacio <span>/</span><span className="breadcrumb-current">{page === 'settings' ? 'Ajustes' : subject?.name ?? 'Inicio'}</span>{subject?.isDemo && page !== 'settings' && <span className="demo-chip">Ejemplo</span>}</div><div className="topbar-tools">{runningSession && <RunningSessionPill session={runningSession} onOpen={() => { setSubjectId(runningSession.subjectId); navigate('sessions'); }} />}<PrivacyChip /></div></header>
-      <main className={`main-content page-${page}`} id="main-content"><Content key={page === 'moodle' ? 'moodle' : `${page}:${subjectId}`} {...props} /></main>
+      <main className={`main-content page-${page}`} id="main-content">{!data.settings.onboardingCompleted && !activeExam ? <Onboarding {...props}/> : <Content key={page === 'moodle' ? 'moodle' : `${page}:${subjectId}`} {...props} />}</main>
     </div>
     {newSubject && <NewSubject onClose={() => setNewSubject(false)} onCreate={async input => {
       const created = await window.tutor.createSubject(input); await refresh(); setSubjectId(created.id); setNewSubject(false); navigate('home'); notify('Tu asignatura está lista. Añade los primeros materiales.');

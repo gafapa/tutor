@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import type { ExtractedMaterial } from './importer.js';
 const running = new Set<Worker>();
 
-function extract(data: { path: string } | { name: string; bytes: Buffer }, signal?: AbortSignal): Promise<ExtractedMaterial> {
+function extract(data: { path: string; allowEmptyPdf?: boolean } | { name: string; bytes: Buffer }, signal?: AbortSignal): Promise<ExtractedMaterial> {
   signal?.throwIfAborted();
   if (running.size >= 2) return Promise.reject(new Error('Hay otras lecturas de materiales en curso. Espera a que terminen.'));
   const worker = new Worker(join(__dirname, 'import-worker.js'), { workerData: data, resourceLimits: { maxOldGenerationSizeMb: 192, stackSizeMb: 4 } });
@@ -26,5 +26,5 @@ function extract(data: { path: string } | { name: string; bytes: Buffer }, signa
     worker.once('exit', () => { running.delete(worker); if (!settled) finish(new Error('La lectura del material se interrumpió.')); });
   });
 }
-export const extractMaterialLocal = (path: string, signal?: AbortSignal) => extract({ path }, signal);
+export const extractMaterialLocal = (path: string, signal?: AbortSignal, allowEmptyPdf = false) => extract({ path, allowEmptyPdf }, signal);
 export const extractMaterialBufferLocal = (name: string, bytes: Buffer, signal?: AbortSignal) => extract({ name, bytes }, signal);

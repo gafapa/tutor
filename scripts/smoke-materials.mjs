@@ -1,3 +1,4 @@
+import { prepareTestWindow } from './test-profile.mjs';
 import { _electron as electron } from 'playwright';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -20,7 +21,7 @@ const launch = () => electron.launch({ executablePath: packaged ? resolve('relea
 let app = await launch(); const errors = [];
 try {
   assert.equal(await app.evaluate(({ app }) => app.getVersion()), JSON.parse(await readFile('package.json', 'utf8')).version);
-  let window = await app.firstWindow(); window.on('pageerror', error => errors.push(error.message));
+  let window = await app.firstWindow(); await prepareTestWindow(window); window.on('pageerror', error => errors.push(error.message));
   const subject = await window.evaluate(() => window.tutor.createDemo()); await window.reload();
   await window.getByRole('button', { name: 'Materiales', exact: true }).click();
   await app.evaluate(({ dialog }, paths) => { dialog.showOpenDialog = async (_window, options) => { globalThis.materialExtensions = options.filters[0].extensions; return { canceled: false, filePaths: paths }; }; }, [...Object.values(files), broken]);
@@ -73,7 +74,7 @@ try {
   await window.evaluate(() => window.tutor.exportData({ format: 'encrypted', password: 'materiales-prueba-privada' }));
   const backup = await readFile(backupPath); assert.equal(backup.includes(Buffer.from('32 direcciones')), false);
   await window.evaluate(() => window.tutor.eraseData()); await window.evaluate(() => window.tutor.importData({ password: 'materiales-prueba-privada' }));
-  await app.close(); app = await launch(); window = await app.firstWindow(); window.on('pageerror', error => errors.push(error.message));
+  await app.close(); app = await launch(); window = await app.firstWindow(); await prepareTestWindow(window); window.on('pageerror', error => errors.push(error.message));
   const restored = await window.evaluate(() => window.tutor.snapshot()); assert.equal(restored.materials.filter(m => ['pptx', 'html', 'srt', 'vtt'].includes(m.kind)).length, 4); assert.equal(restored.flashcards.length, cardCount); assert.equal(restored.attempts.length, 0); assert.ok(restored.estimates.every(e => e.status === 'unseen'));
   await window.evaluate(id => window.tutor.deleteMaterial(id), deck.id); const removed = await window.evaluate(() => window.tutor.snapshot()); assert.equal(removed.flashcards.length, 0);
   assert.equal(externalRequests, 0); assert.deepEqual(errors, []);

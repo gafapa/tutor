@@ -1,3 +1,4 @@
+import type { SetupAPI } from './setup.js';
 import type { EducationAPI, EducationSnapshot } from './education.js';
 import type { StudyAPI, StudySnapshot } from './study.js';
 import type { AssessmentAPI, AssessmentSnapshot, ExerciseClassification } from './assessment.js';
@@ -92,7 +93,7 @@ export interface Snapshot extends EducationSnapshot, StudySnapshot, AssessmentSn
   diagnostics: Diagnostic[]; tasks: StudyTask[]; reviews: Review[]; plans: DailyPlan[];
   practiceConceptIds: string[];
   exerciseConceptNames: string[];
-  settings: { name: string; dailyMinutes: number; largeText: boolean; highContrast: boolean };
+  settings: { name: string; dailyMinutes: number; largeText: boolean; highContrast: boolean } & import('./setup.js').LearningSetup;
   storagePath: string; model: ModelStatus;
 }
 export interface SubjectInput { name: string; course?: string; level: string; teacher: string; goals: string; color: string; }
@@ -106,7 +107,7 @@ export interface Exercise {
 }
 export interface ImportReport { imported: number; duplicates: number; errors: string[]; cancelled?: boolean; }
 export interface ImportProgress { subjectId: string; current: number; total: number; name: string; }
-export interface TutorAPI extends EducationAPI, StudyAPI, AssessmentAPI, RubricAPI, LmsAPI, PedagogyAPI,ConnectionAPI, ReportAPI, GoalsAPI, OcrAPI, SemanticAPI {
+export interface TutorAPI extends EducationAPI, StudyAPI, AssessmentAPI, RubricAPI, LmsAPI, PedagogyAPI,ConnectionAPI, ReportAPI, GoalsAPI, OcrAPI, SemanticAPI, SetupAPI {
   snapshot(): Promise<Snapshot>;
   createSubject(input: SubjectInput): Promise<Subject>;
   updateSubject(input: SubjectInput & { id: string }): Promise<Subject>;

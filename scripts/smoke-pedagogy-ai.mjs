@@ -1,3 +1,4 @@
+import { prepareTestWindow } from './test-profile.mjs';
 import {_electron as electron} from 'playwright';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
@@ -10,7 +11,7 @@ const directory=resolve('.tools/pedagogy-ai-test',randomUUID());await mkdir(join
 const env={...process.env,TUTOR_DATA_DIR:directory,TUTOR_SMOKE:'1'};delete env.ELECTRON_RUN_AS_NODE;
 const app=await electron.launch({executablePath:packaged?resolve('release/win-unpacked/Tutor Local.exe'):require('electron'),args:packaged?[]:['.'],env,timeout:90000});let progress;const errors=[];
 try{
-  const window=await app.firstWindow();window.setDefaultTimeout(45000);window.on('pageerror',e=>errors.push(e.message));await window.getByRole('button',{name:'Explorar un ejemplo',exact:true}).click();await window.getByRole('heading',{name:'Un poco de potencias de 2.'}).waitFor();
+  const window=await app.firstWindow(); await prepareTestWindow(window);window.setDefaultTimeout(45000);window.on('pageerror',e=>errors.push(e.message));await window.getByRole('button',{name:'Explorar un ejemplo',exact:true}).click();await window.getByRole('heading',{name:'Un poco de potencias de 2.'}).waitFor();
   await app.evaluate(({session})=>session.defaultSession.enableNetworkEmulation({offline:true}));
   progress=setInterval(()=>{void window.evaluate(()=>window.tutor.modelStatus()).then(s=>console.log(`Análisis local: ${s.state} · ${s.message}`)).catch(()=>{});},15000);
   const results=[];

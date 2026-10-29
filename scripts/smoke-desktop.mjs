@@ -1,3 +1,4 @@
+import { prepareTestWindow } from './test-profile.mjs';
 import { _electron as electron } from 'playwright';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -18,12 +19,12 @@ let app = await launch();
 try {
   const version = await app.evaluate(({ app }) => app.getVersion());
   assert.equal(version, JSON.parse(await readFile('package.json', 'utf8')).version, 'El ejecutable debe corresponder a la versión que se está verificando.');
-  let window = await app.firstWindow();
+  let window = await app.firstWindow(); await prepareTestWindow(window);
   const errors = [];
   window.on('pageerror', error => errors.push(error.message));
   await window.getByRole('heading', { name: 'Aprender empieza' }).waitFor();
   await window.screenshot({ path: `test-results/${packaged ? 'packaged-' : ''}welcome.png` });
-  await window.getByRole('button', { name: 'Crear mi primera asignatura', exact: true }).click();
+  await window.getByRole('button', { name: 'Nueva asignatura', exact: true }).click();
   await window.getByLabel('Nombre de la asignatura').fill('Matemáticas');
   await window.getByLabel('Curso', { exact: true }).fill('3.º');
   await window.getByLabel('Nivel académico').fill('ESO');
@@ -101,7 +102,7 @@ try {
   await window.screenshot({ path: `test-results/${packaged ? 'packaged-' : ''}settings.png` });
   assert.deepEqual(errors, []);
   await app.close();
-  app = await launch(); window = await app.firstWindow();
+  app = await launch(); window = await app.firstWindow(); await prepareTestWindow(window);
   window.on('pageerror', error => errors.push(error.message));
   await window.getByRole('heading', { name: 'Este es tu espacio.' }).waitFor();
   const restored = await window.evaluate(() => window.tutor.snapshot());

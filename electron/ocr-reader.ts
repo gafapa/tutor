@@ -1,11 +1,9 @@
 import { createCanvas, loadImage, DOMMatrix, ImageData, Path2D, type Canvas } from '@napi-rs/canvas';
 import { createHash, randomUUID } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
 import { basename, join, dirname } from 'node:path';
-import { createWorker, OEM, PSM, type Worker as OcrWorker } from 'tesseract.js';
 import { imageDimensions } from './image-header.js';
 import { readLocalFile } from './local-file.js';
-import { OCR_ASSETS, OCR_VERSION, MAX_CAPTURE_BYTES } from './ocr-config.js';
+import { VISION_VERSION, MAX_CAPTURE_BYTES } from './ocr-config.js';
 import type { Capture, OcrOptions, OcrProgress } from '../shared/ocr.js';
 
 const hash = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
@@ -17,15 +15,9 @@ function normalize(canvas: Canvas, rotation: OcrOptions['rotation']): Canvas {
   context.fillStyle = 'white'; context.fillRect(0, 0, output.width, output.height); context.translate(output.width / 2, output.height / 2);
   context.rotate(rotation * Math.PI / 180); context.drawImage(canvas, -canvas.width * scale / 2, -canvas.height * scale / 2, canvas.width * scale, canvas.height * scale); return output;
 }
-export async function recognizeLocalDocument(path: string, options: OcrOptions, assetDirectory: string, progress: (value: Omit<OcrProgress, 'id' | 'subjectId'>) => void): Promise<Capture[]> {
-  const bytes = await readLocalFile(path), sourceHash = hash(bytes), filename = shortName(basename(path)), models = [];
-  for (const language of options.language.split('+')) {
-    const asset = OCR_ASSETS.find(row => row.name === language + '.traineddata'); if (!asset) throw new Error('Idioma OCR no compatible.');
-    const data = await readFile(join(assetDirectory, asset.name));
-    if (data.length !== asset.bytes || hash(data) !== asset.sha256) throw new Error('Faltan recursos del reconocimiento local o están dañados. Reinstala la app para recuperarlos.');
-    models.push({ code: language, data });
-  }
-  let worker: OcrWorker | undefined, pdf: import('pdfjs-dist/types/src/display/api.js').PDFDocumentProxy | undefined;
+export async function recognizeLocalDocument(path: string, options: OcrOptions, progress: (value: Omit<OcrProgress, 'id' | 'subjectId'>) => void): Promise<Capture[]> {
+  const bytes = await readLocalFile(path), sourceHash = hash(bytes), filename = shortName(basename(path));
+  let pdf: import('pdfjs-dist/types/src/display/api.js').PDFDocumentProxy | undefined;
   let task: import('pdfjs-dist/types/src/display/api.js').PDFDocumentLoadingTask | undefined;
   let currentPage = 1, pageCount = 1;
   const output: Capture[] = [];
@@ -44,10 +36,6 @@ export async function recognizeLocalDocument(path: string, options: OcrOptions, 
       imageDimensions(bytes);
     }
     progress({ name: filename, page: 1, total: pageCount, fraction: 0, stage: 'preparing' });
-    worker = await createWorker(options.language, OEM.LSTM_ONLY, { workerPath: join(__dirname, 'ocr-tesseract-worker.js'), langPath: assetDirectory, cacheMethod: 'none', gzip: false, logger: value => {
-      if (value.status === 'recognizing text') progress({ name: filename, page: currentPage, total: pageCount, fraction: Math.max(0, Math.min(1, value.progress)), stage: 'recognizing' });
-    }, errorHandler: () => {} });
-    await worker.setParameters({ tessedit_pageseg_mode: PSM.AUTO, preserve_interword_spaces: '1', user_defined_dpi: '150' });
     for (let index = 0; index < pageCount; index++) {
       currentPage = index + 1; const sourcePage = isPdf ? options.firstPage + index : 1;
       progress({ name: filename, page: currentPage, total: pageCount, fraction: 0, stage: 'reading' });
@@ -65,15 +53,10 @@ export async function recognizeLocalDocument(path: string, options: OcrOptions, 
       const image = normalize(canvas, options.rotation); let imageBytes = image.encodeSync('jpeg', 88);
       if (imageBytes.length > MAX_CAPTURE_BYTES) imageBytes = image.encodeSync('jpeg', 65);
       if (imageBytes.length > MAX_CAPTURE_BYTES) throw new Error('La imagen preparada supera 2 MB. Recorta el área del ejercicio o usa una fotografía más pequeña.');
-      const recognized = await worker.recognize(imageBytes, {}, { text: true, blocks: true });
-      const text = recognized.data.text.replace(/[\u0000\f]/g, ' ').trim();
-      if (text.length > 100000) throw new Error('La página contiene demasiado texto reconocido.');
-      const words = (recognized.data.blocks ?? []).flatMap(block => block.paragraphs.flatMap(paragraph => paragraph.lines.flatMap(line => line.words))).map(word => ({ text: word.text.slice(0, 200), confidence: Math.max(0, Math.min(100, word.confidence)), box: { x0: Math.max(0, Math.floor(word.bbox.x0)), y0: Math.max(0, Math.floor(word.bbox.y0)), x1: Math.min(image.width, Math.ceil(word.bbox.x1)), y1: Math.min(image.height, Math.ceil(word.bbox.y1)) } }));
-      if (words.length > 10000) throw new Error('La página contiene demasiados fragmentos reconocidos.');
       output.push({ id: randomUUID(), subjectId: options.subjectId, name: isPdf ? shortName(`${filename} · página ${sourcePage}`) : filename, sourceFormat: isPdf ? 'pdf' : 'image', sourcePage, sourceHash,
         image: { mime: 'image/jpeg', base64: imageBytes.toString('base64'), width: image.width, height: image.height, hash: hash(imageBytes) },
-        recognition: { engine: 'tesseract-local', version: OCR_VERSION, language: options.language, modelHashes: models.map(model => OCR_ASSETS.find(row => row.name === model.code + '.traineddata')!.sha256), text, confidence: Math.max(0, Math.min(100, recognized.data.confidence)), words }, createdAt: new Date().toISOString() });
+        recognition: { engine: 'multimodal', version: VISION_VERSION, provider: 'local', model: 'pending', language: options.language, modelHashes: [], text: '', confidence: null, words: [] }, createdAt: new Date().toISOString() });
     }
     return output;
-  } finally { await worker?.terminate(); await task?.destroy(); }
+  } finally { await task?.destroy(); }
 }

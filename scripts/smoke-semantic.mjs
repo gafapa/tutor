@@ -1,3 +1,4 @@
+import { prepareTestWindow } from './test-profile.mjs';
 import { _electron as electron } from 'playwright';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -13,7 +14,7 @@ const launch = () => electron.launch({ executablePath: packaged ? resolve('relea
 let app = await launch(); const errors = [], proof = { version: JSON.parse(await readFile('package.json', 'utf8')).version, model: 'Multilingual E5 small INT8', localOnly: true, checks: [], qualityScope: 'synthetic multilingual queries; approximate results, not probability or learning assessment' };
 const input = (subjectId, query, changes = {}) => ({ subjectId, query, scope: 'all', conceptId: null, outcome: 'all', since: null, until: null, order: 'relevance', page: 1, ...changes });
 try {
-  let window = await app.firstWindow(); window.on('pageerror', error => errors.push(error.message));
+  let window = await app.firstWindow(); await prepareTestWindow(window); window.on('pageerror', error => errors.push(error.message));
   const instrument = async () => app.evaluate(({ utilityProcess, BrowserWindow }) => {
     const fork = utilityProcess.fork.bind(utilityProcess); globalThis.semanticForks = []; globalThis.semanticExits = 0; globalThis.semanticCancels = false; globalThis.semanticErrors = [];
     utilityProcess.fork = (path, args, options) => { const child = fork(path, args, options); if (path.endsWith('semantic-process.js')) { globalThis.semanticForks.push({ keys: Object.keys(options.env).sort(), partition: options.partition, stdio: options.stdio, heap: options.execArgv }); child.once('exit', () => globalThis.semanticExits++); child.on('message', message => { if (typeof message.error === 'string') globalThis.semanticErrors.push(message.error); if (message.ready && globalThis.semanticCancels) { globalThis.semanticCancels = false; void BrowserWindow.getAllWindows()[0].webContents.executeJavaScript('window.tutor.cancelSemanticSearch()'); } }); } return child; };
@@ -65,7 +66,7 @@ try {
   const indexPath = join(directory, 'semantic-index.tutor'), beforeIndex = await readFile(indexPath); assert.equal(beforeIndex.subarray(0, 7).toString(), 'TUTOR01'); assert.equal(beforeIndex.includes(Buffer.from('Las fracciones')), false); assert.equal(beforeIndex.includes(Buffer.from('pizza')), false);
   let native = await app.evaluate(() => ({ forks: globalThis.semanticForks, exits: globalThis.semanticExits, errors: globalThis.semanticErrors })); assert.equal(native.errors.length, 0); assert.equal(native.forks.length, native.exits);
   for (const fork of native.forks) { assert.equal(fork.stdio, 'ignore'); assert.ok(fork.partition.startsWith('semantic-')); assert.ok(fork.keys.every(key => ['SystemRoot', 'WINDIR', 'TEMP', 'TMP', 'SystemDrive'].includes(key))); }
-  await app.close(); app = await launch(); window = await app.firstWindow(); await instrument(); await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(960, 800));
+  await app.close(); app = await launch(); window = await app.firstWindow(); await prepareTestWindow(window); await instrument(); await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(960, 800));
   const restarted = await search(input(subject.id, 'How do I represent part of a whole?', { scope: 'materials' })); assert.equal(restarted.hits[0]?.title, 'Fracciones'); assert.equal((await readFile(indexPath)).equals(beforeIndex), true);
   proof.checks.push({ name: 'Encrypted derived index reused after restart; sanitized isolated worker environment; native processes close after every query' });
   await app.evaluate(() => { globalThis.semanticCancels = true; });

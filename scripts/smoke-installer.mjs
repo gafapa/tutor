@@ -1,3 +1,4 @@
+import { prepareTestWindow } from './test-profile.mjs';
 import { _electron as electron } from 'playwright';
 import { spawn } from 'node:child_process';
 import { randomUUID, createHash } from 'node:crypto';
@@ -20,7 +21,7 @@ try {
   assert.ok(proof.install.desktopShortcut && proof.install.startMenuShortcut);
   assert.ok((await readFile(join(target, 'resources/app.asar'))).equals(await readFile('release/win-unpacked/resources/app.asar')));
   const env = { ...process.env, TUTOR_DATA_DIR: dataDirectory, TUTOR_SMOKE: '1' }; delete env.ELECTRON_RUN_AS_NODE;
-  app = await electron.launch({ executablePath: join(target, 'Tutor Local.exe'), env, timeout: 60000 }); const window = await app.firstWindow();
+  app = await electron.launch({ executablePath: join(target, 'Tutor Local.exe'), env, timeout: 60000 }); const window = await app.firstWindow(); await prepareTestWindow(window);
   await window.getByRole('heading', { name: 'Aprender empieza' }).waitFor();
   const subject = await window.evaluate(() => window.tutor.createDemo()); await window.evaluate(subjectId => window.tutor.addNote({ subjectId, name: 'Fracciones instaladas', text: 'Las fracciones expresan partes de un todo. El numerador cuenta las partes tomadas y el denominador las divisiones iguales.' }), subject.id);
   const result = await window.evaluate(subjectId => window.tutor.semanticSearch({ subjectId, query: '¿Cómo representar una porción de pizza?', scope: 'materials', conceptId: null, outcome: 'all', since: null, until: null, order: 'relevance', page: 1 }), subject.id);

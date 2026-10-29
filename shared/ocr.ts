@@ -4,12 +4,12 @@ export interface OcrWord { text: string; confidence: number; box: { x0: number; 
 export interface Capture {
   id: string; subjectId: string; name: string; sourceFormat: 'image' | 'pdf'; sourcePage: number; sourceHash: string;
   image: { mime: 'image/jpeg'; base64: string; width: number; height: number; hash: string };
-  recognition: { engine: 'tesseract-local'; version: string; language: OcrLanguage; modelHashes: string[]; text: string; confidence: number; words: OcrWord[] };
+  recognition: { engine: 'multimodal'; provider: 'local' | 'codex' | 'claude'; model: string; version: string; language: OcrLanguage; modelHashes: string[]; text: string; confidence: null; words: OcrWord[] };
   createdAt: string;
 }
 export interface CaptureReview { id: string; subjectId: string; captureId: string; previousId: string | null; text: string; confirmed: true; createdAt: string; }
 export interface CaptureSource { captureId: string; reviewId: string; sourceHash: string; sourcePage: number; removed?: true; }
-export interface CaptureSummary { id: string; subjectId: string; name: string; sourceFormat: 'image' | 'pdf'; sourcePage: number; width: number; height: number; confidence: number; createdAt: string; }
+export interface CaptureSummary { id: string; subjectId: string; name: string; sourceFormat: 'image' | 'pdf'; sourcePage: number; width: number; height: number; confidence: null; createdAt: string; }
 export interface CaptureReviewSummary { id: string; subjectId: string; captureId: string; previousId: string | null; createdAt: string; }
 export interface OcrDraft { draftId: string; capture: Capture; }
 export interface OcrProgress { id: string; subjectId: string; name: string; page: number; total: number; fraction: number; stage: 'selection' | 'preparing' | 'reading' | 'recognizing'; }

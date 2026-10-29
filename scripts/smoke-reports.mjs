@@ -1,3 +1,4 @@
+import { prepareTestWindow } from './test-profile.mjs';
 import { _electron as electron } from 'playwright';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -14,14 +15,14 @@ async function persistedReportCount() {
   return app.evaluate(async ({ app, safeStorage }, directory) => {
     const hostRequire = typeof require === 'function' ? require : process.mainModule.require.bind(process.mainModule);
     const { createRequire } = hostRequire('node:module'), { readFileSync } = hostRequire('node:fs'), { join } = hostRequire('node:path');
-    const req = createRequire(join(app.getAppPath(), 'package.json')), key = Buffer.from(safeStorage.decryptString(readFileSync(join(directory, 'vault-key.bin'))), 'base64');
+    const req = createRequire(join(app.getAppPath(), 'package.json'));
     const sql = await req('sql.js')({ locateFile: () => req.resolve('sql.js/dist/sql-wasm.wasm') });
-    const db = new sql.Database(req('./build/electron/vault.js').decrypt(readFileSync(join(directory, 'learning.tutor')), key));
+    const db = new sql.Database(readFileSync(join(directory, 'learning.sqlite')));
     try { return Number(db.exec('SELECT COUNT(*) FROM learning_reports')[0].values[0][0]); } finally { db.close(); }
   }, directory);
 }
 try {
-  let window = await app.firstWindow(); window.setDefaultTimeout(45000); window.on('pageerror', e => errors.push(e.message));
+  let window = await app.firstWindow(); await prepareTestWindow(window); window.setDefaultTimeout(45000); window.on('pageerror', e => errors.push(e.message));
   assert.equal(await app.evaluate(({ app }) => app.getVersion()), JSON.parse(await readFile('package.json', 'utf8')).version);
   await window.getByRole('button', { name: 'Explorar un ejemplo', exact: true }).click();
   const initial = await window.evaluate(async () => {
@@ -83,7 +84,7 @@ try {
   await window.evaluate(id => window.tutor.cancelMockExam(id), exam.id);
   const backupPath = join(directory, 'reports.tutor'); await app.evaluate(({ dialog }, path) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: path }); dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [path] }); }, backupPath);
   await window.evaluate(() => window.tutor.exportData({ format: 'encrypted', password: 'reports-private-fixture' })); await window.evaluate(() => window.tutor.eraseData()); await window.evaluate(() => window.tutor.importData({ password: 'reports-private-fixture' }));
-  await app.close(); app = await launch(); window = await app.firstWindow(); window.on('pageerror', e => errors.push(e.message));
+  await app.close(); app = await launch(); window = await app.firstWindow(); await prepareTestWindow(window); window.on('pageerror', e => errors.push(e.message));
   await window.getByRole('button', { name: 'Mis informes', exact: true }).click(); const restored = await window.evaluate(() => window.tutor.snapshot()); assert.deepEqual(restored.learningReports, snapshot.learningReports);
   await window.getByRole('button', { name: 'Cambio de curso', exact: true }).click(); await window.getByRole('button', { name: 'Eliminar informe y versiones', exact: true }).click(); await window.getByRole('button', { name: 'Eliminar informe', exact: true }).click(); await window.getByRole('dialog').waitFor({ state: 'hidden' });
   await window.evaluate(id => window.tutor.deleteSubject(id), initial.subject.id); const remaining = await window.evaluate(() => window.tutor.snapshot()); assert.equal(remaining.learningReports.length, 0); assert.equal(remaining.reportPreferences.length, 0); assert.equal(remaining.attempts.length, 1); assert.deepEqual(errors, []);

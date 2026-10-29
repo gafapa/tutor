@@ -1,3 +1,4 @@
+import { prepareTestWindow } from './test-profile.mjs';
 import { _electron as electron } from 'playwright';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -13,7 +14,7 @@ const launch = () => electron.launch({ executablePath: packaged ? resolve('relea
 const fixture = await startMoodle(); let app, window; const errors = [];
 try {
   await fixture.action('reset'); await fixture.action('history');
-  app = await launch(); window = await app.firstWindow(); window.setDefaultTimeout(60000); window.on('pageerror', error => errors.push(error.message));
+  app = await launch(); window = await app.firstWindow(); await prepareTestWindow(window); window.setDefaultTimeout(60000); window.on('pageerror', error => errors.push(error.message));
   assert.equal(await app.evaluate(({ app }) => app.getVersion()), JSON.parse(await readFile('package.json', 'utf8')).version);
   await window.evaluate(() => window.tutor.createDemo()); await window.reload();
   await window.getByRole('button', { name: 'Mi Moodle', exact: true }).click();
@@ -61,7 +62,7 @@ try {
   await window.evaluate(password => window.tutor.exportData({ format: 'encrypted', password }), password);
   await app.evaluate(({ dialog }, path) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [path] }); }, backup);
   await window.evaluate(password => window.tutor.importData({ password }), password);
-  await app.close(); app = await launch(); window = await app.firstWindow(); window.on('pageerror', error => errors.push(error.message));
+  await app.close(); app = await launch(); window = await app.firstWindow(); await prepareTestWindow(window); window.on('pageerror', error => errors.push(error.message));
   const restored = await window.evaluate(() => window.tutor.snapshot());
   assert.deepEqual(restored.lmsItems.find(row => row.id === item.id).data, item.data); assert.equal(restored.portfolio[0].content, copied.portfolio[0].content); assert.equal(restored.attempts.length, 0); assert.deepEqual(errors, []);
   await writeFile(`test-results/${prefix}moodle-history-verification.json`, JSON.stringify({ checkedAt: new Date().toISOString(), packaged, realIsolatedMoodle: true, historicalAttemptsBeforeConnection: true, separateAttemptSelector: true, historicalTextAndFeedback: true, oldAttachmentDownloadedAndExported: true, offlineAfterDisconnect: true, historicalCopyWithReflection: true, currentTaskUnchanged: true, noMasteryEvidenceAdded: true, encryptedBackupAndRestart: true, narrowDialogNoOverflow: true, errors }, null, 2));

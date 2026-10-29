@@ -1,3 +1,4 @@
+import { prepareTestWindow } from './test-profile.mjs';
 import { _electron as electron } from 'playwright';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -12,7 +13,7 @@ const launch = () => electron.launch({ executablePath: packaged ? resolve('relea
 let app = await launch(); const errors = [];
 const text = 'Cada bit puede valer 0 o 1. Cuatro bits permiten 2 × 2 × 2 × 2 = 16 combinaciones. Los cuatro factores de dos corresponden a los cuatro bits.';
 try {
-  let window = await app.firstWindow(); window.setDefaultTimeout(45000); window.on('pageerror', error => errors.push(error.message));
+  let window = await app.firstWindow(); await prepareTestWindow(window); window.setDefaultTimeout(45000); window.on('pageerror', error => errors.push(error.message));
   await window.getByRole('button', { name: 'Explorar un ejemplo', exact: true }).click();
   await window.getByRole('heading', { name: 'Un poco de potencias de 2.' }).waitFor();
   const portfolio = await window.evaluate(async text => {
@@ -93,7 +94,7 @@ try {
   assert.equal((await readFile(backupPath)).includes(Buffer.from(text)), false);
   const beforeBackup = await window.evaluate(() => window.tutor.snapshot());
   await window.evaluate(() => window.tutor.eraseData()); await window.evaluate(() => window.tutor.importData({ password: 'rubricas-prueba-portable' }));
-  await app.close(); app = await launch(); window = await app.firstWindow(); window.setDefaultTimeout(45000); window.on('pageerror', error => errors.push(error.message));
+  await app.close(); app = await launch(); window = await app.firstWindow(); await prepareTestWindow(window); window.setDefaultTimeout(45000); window.on('pageerror', error => errors.push(error.message));
   await window.getByRole('button', { name: 'Rúbricas', exact: true }).click();
   snapshot = await window.evaluate(() => window.tutor.snapshot());
   assert.deepEqual(snapshot.rubricReviews, beforeBackup.rubricReviews); assert.deepEqual(snapshot.rubricSubmissions, beforeBackup.rubricSubmissions);

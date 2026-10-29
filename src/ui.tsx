@@ -24,7 +24,7 @@ export function outcomeName(outcome: Attempt['outcome']) { return { correct: 'Co
 export function Badge({ status }: { status: Mastery }) {
   return <span className={`badge ${statuses[status].className}`}><span />{statuses[status].name}</span>;
 }
-export function PrivacyChip() { return <span className="privacy-chip"><ShieldCheck size={14} /> Privado y local</span>; }
+export function PrivacyChip() { return <span className="privacy-chip"><ShieldCheck size={14} /> Datos en este equipo</span>; }
 export function Spinner({ label = 'Un momento…' }: { label?: string }) { return <span className="spinner-label"><LoaderCircle size={18} className="spin" />{label}</span>; }
 export function Empty({ icon, title, children, action }: { icon: ReactNode; title: string; children: ReactNode; action?: ReactNode }) {
   return <div className="empty-state"><span className="empty-icon">{icon}</span><h3>{title}</h3><p>{children}</p>{action}</div>;

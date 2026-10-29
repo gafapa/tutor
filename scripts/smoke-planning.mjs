@@ -1,3 +1,4 @@
+import { prepareTestWindow } from './test-profile.mjs';
 import { _electron as electron } from 'playwright';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -15,7 +16,7 @@ const prefix = packaged ? 'packaged-' : '';
 let app = await launch();
 const errors = [];
 try {
-  let window = await app.firstWindow(); window.on('pageerror', error => errors.push(error.message));
+  let window = await app.firstWindow(); await prepareTestWindow(window); window.on('pageerror', error => errors.push(error.message));
   window.setDefaultTimeout(45000);
   await window.getByRole('button', { name: 'Explorar un ejemplo', exact: true }).click();
   await window.getByRole('heading', { name: 'Un poco de potencias de 2.' }).waitFor();
@@ -29,7 +30,7 @@ try {
   await window.getByRole('heading', { name: '¿Cuánto es 2 elevado a 5? Escribe el resultado numérico.' }).waitFor();
   await window.getByRole('button', { name: 'Pausar y salir' }).click();
   await window.getByRole('heading', { name: 'Un plan que tenga sentido para ti.' }).waitFor();
-  await app.close(); app = await launch(); window = await app.firstWindow(); window.on('pageerror', error => errors.push(error.message)); window.setDefaultTimeout(45000);
+  await app.close(); app = await launch(); window = await app.firstWindow(); await prepareTestWindow(window); window.on('pageerror', error => errors.push(error.message)); window.setDefaultTimeout(45000);
   await window.getByRole('button', { name: 'Punto de partida', exact: true }).click();
   await window.getByRole('heading', { name: '¿Cuánto es 2 elevado a 5? Escribe el resultado numérico.' }).waitFor();
   assert.equal((await window.evaluate(() => window.tutor.snapshot())).diagnostics[0].responses.length, 1);

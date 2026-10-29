@@ -1,3 +1,4 @@
+import { prepareTestWindow } from './test-profile.mjs';
 import { _electron as electron } from 'playwright';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -14,7 +15,7 @@ const fixture = await startMoodle(); let app;
 try {
   await fixture.action('reset'); app = await launch();
   assert.equal(await app.evaluate(({ app }) => app.getVersion()), JSON.parse(await readFile('package.json', 'utf8')).version);
-  let window = await app.firstWindow(); window.setDefaultTimeout(60000); const errors = []; window.on('pageerror', error => errors.push(error.message));
+  let window = await app.firstWindow(); await prepareTestWindow(window); window.setDefaultTimeout(60000); const errors = []; window.on('pageerror', error => errors.push(error.message));
   await window.getByRole('heading', { name: 'Aprender empieza', exact: false }).waitFor();
   await window.evaluate(() => window.tutor.createDemo()); await window.reload();
   await window.getByRole('button', { name: 'Mi Moodle', exact: true }).click();
@@ -51,7 +52,7 @@ try {
   for (const key of ['lmsConnections', 'lmsItems', 'lmsVersions', 'lmsRuns']) assert.equal(locked[key].length, 0);
   assert.equal(await window.evaluate(async id => { try { await window.tutor.syncMoodle(id); return false; } catch { return true; } }, connection.id), true);
   await window.evaluate(id => window.tutor.cancelMockExam(id), exam.id);
-  await app.close(); app = await launch(); window = await app.firstWindow(); window.setDefaultTimeout(60000); window.on('pageerror', error => errors.push(error.message));
+  await app.close(); app = await launch(); window = await app.firstWindow(); await prepareTestWindow(window); window.setDefaultTimeout(60000); window.on('pageerror', error => errors.push(error.message));
   await window.getByRole('button', { name: 'Mi Moodle', exact: true }).click(); snapshot = await window.evaluate(() => window.tutor.snapshot()); assert.ok(snapshot.lmsConnections[0].hasCredentials); assert.deepEqual(snapshot.lmsItems, before.lmsItems);
   const exported = join(directory, 'portable.tutor'); const password = 'Synthetic backup password';
   await app.evaluate(({ dialog }, path) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: path }); }, exported);

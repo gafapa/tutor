@@ -1,3 +1,4 @@
+import { prepareTestWindow } from './test-profile.mjs';
 import { _electron as electron } from 'playwright';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -11,7 +12,7 @@ const env = { ...process.env, TUTOR_DATA_DIR: directory, TUTOR_SMOKE: '1' }; del
 const launch = () => electron.launch({ executablePath: packaged ? resolve('release/win-unpacked/Tutor Local.exe') : require('electron'), args: packaged ? [] : ['.'], env, timeout: 90000 });
 let app = await launch(); const errors = [];
 try {
-  let window = await app.firstWindow(); window.setDefaultTimeout(45000); window.on('pageerror', error => errors.push(error.message));
+  let window = await app.firstWindow(); await prepareTestWindow(window); window.setDefaultTimeout(45000); window.on('pageerror', error => errors.push(error.message));
   await window.getByRole('button', { name: 'Explorar un ejemplo', exact: true }).click();
   await window.getByRole('heading', { name: 'Un poco de potencias de 2.' }).waitFor();
   await window.getByRole('button', { name: 'Sesiones', exact: true }).click();
@@ -32,7 +33,7 @@ try {
   await window.screenshot({ path: `test-results/${prefix}study-running.png` });
   const active = (await window.evaluate(() => window.tutor.snapshot())).studySessions[0];
   assert.equal(active.status, 'running'); assert.equal(active.attemptIds.length, 1);
-  await app.close(); app = await launch(); window = await app.firstWindow(); window.setDefaultTimeout(45000); window.on('pageerror', error => errors.push(error.message));
+  await app.close(); app = await launch(); window = await app.firstWindow(); await prepareTestWindow(window); window.setDefaultTimeout(45000); window.on('pageerror', error => errors.push(error.message));
   await window.getByRole('button', { name: 'Sesiones', exact: true }).click();
   await window.getByText('Pausada', { exact: true }).waitFor();
   let snapshot = await window.evaluate(() => window.tutor.snapshot());

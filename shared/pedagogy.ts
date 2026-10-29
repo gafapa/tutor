@@ -11,7 +11,7 @@ export interface LearningObservation {
   quotes: WorkQuote[]; description: string; arithmetic: ArithmeticStep | null;
 }
 export interface LearningAnalysis {
-  id: string; subjectId: string; source: WorkRef; engine: 'arithmetic' | 'local-ai' | 'self';
+  id: string; subjectId: string; source: WorkRef; engine: 'arithmetic' | 'local-ai' | 'account-ai' | 'self';
   model: { name: string; promptVersion: string } | null;
   coverage: { start: number; end: number }[]; observations: LearningObservation[];
   steps: ArithmeticStep[]; createdAt: string;

@@ -15,7 +15,7 @@ async function fixture() {
   const release = {
     version, checkedAt: '2026-10-06T00:00:00Z', installer: { bytes: bytes.length, sha256 },
     domainTests: 3, packagedChecks: 1, checks: ['desktop'], sourceModulesMatch: true, rendererAssetsMatch: true,
-    ocrAssetsVerified: true, semanticAssetsVerified: true, pdfTextAndRenderVerified: true,
+    multimodalCaptureWorkflow: true, semanticAssetsVerified: true, pdfTextAndRenderVerified: true,
     codeSigned: false, fullRequirementCount: 80, remainingScope: 'active', privateField: 'PRIVATE_REPORT_DATA'
   };
   const installed = {
@@ -88,7 +88,7 @@ test('la publicación vuelve a comprobar el ejecutable descargado del artefacto'
 async function portableFixture() {
   const f = await fixture(), portableName = `Tutor-Local-${version}-Portable.zip`, sha256 = createHash('sha256').update(f.bytes).digest('hex');
   const portable = { path: `release/${portableName}`, bytes: f.bytes.length, sha256 };
-  const proof = { version, portable, zipIntegrity: true, extractedZipExecuted: true, passwordSetupConfirmation: true, wrongPasswordPreservesData: true, movedFolderReopened: true, portableDataPaths: true, noWindowsKey: true, actualBundledSemanticModelBeforeAndAfterMove: true };
+  const proof = { version, portable, zipIntegrity: true, extractedZipExecuted: true, noPasswordRequired: true, plainEducationalHistory: true, movedFolderReopened: true, portableDataPaths: true, noWindowsKey: true, actualBundledSemanticModelBeforeAndAfterMove: true };
   Object.assign(f.release, { portable, checks: ['desktop', 'portable'], packagedChecks: 2 }); await f.save();
   await writeFile(join(f.directory, 'release', portableName), f.bytes);
   await writeFile(join(f.directory, 'release', portableName + '.sha256'), `${sha256}  ${portableName}\n`);
@@ -103,7 +103,7 @@ test('portable distribution copies only the tested ZIP and sanitized qualificati
   assert.deepEqual((await readdir(directory)).sort(), [f.portableName, f.portableName + '.sha256', 'verification.json', 'release-notes.md'].sort());
   assert.deepEqual(await readFile(join(directory, f.portableName)), f.bytes);
   const text = await readFile(join(directory, 'verification.json'), 'utf8'), manifest = JSON.parse(text);
-  assert.equal(manifest.portable.filename, f.portableName); assert.equal(manifest.movedFolderReopened, true); assert.equal(manifest.passwordEncryptedData, true); assert.equal(manifest.differentWindowsAccountOrComputer, false); assert.equal(manifest.sourceWorkingTreeDirty, false); assert.equal(text.includes('PRIVATE_'), false);
+  assert.equal(manifest.portable.filename, f.portableName); assert.equal(manifest.movedFolderReopened, true); assert.equal(manifest.passwordEncryptedData, false); assert.equal(manifest.differentWindowsAccountOrComputer, false); assert.equal(manifest.sourceWorkingTreeDirty, false); assert.equal(text.includes('PRIVATE_'), false);
   const tampered = Buffer.from(f.bytes); tampered[0] ^= 1; await writeFile(join(directory, f.portableName), tampered);
   const published = spawnSync(process.execPath, [publish], { cwd: f.directory, env: { ...process.env, GITHUB_SHA: sourceCommit, GITHUB_REPOSITORY: 'gafapa/tutor', GH_TOKEN: 'synthetic-unused-token', GITHUB_EVENT_NAME: 'push', GITHUB_REF_NAME: `v${version}`, GITHUB_REF: `refs/tags/v${version}` }, encoding: 'utf8' });
   assert.notEqual(published.status, 0); assert.match(published.stderr, /artefacto descargado no coincide/);

@@ -85,7 +85,6 @@ jobs:
             .tools/llama-runtime.zip
             .tools/electron-downloads
             .tools/vc_redist.x64.exe
-            .tools/ocr-runtime
             .tools/semantic-runtime
             .tools/ai-test/models
             .tools/moodle-test/php.zip
@@ -96,7 +95,7 @@ jobs:
         run: node node_modules/electron/install.js
       - name: Build the application
         run: npm run build
-      - name: Prepare llama.cpp, OCR and semantic search
+      - name: Prepare llama.cpp and semantic search
         run: npm run prepare:runtime
       - name: Verify multi-course desktop workflow with synthetic REST responses
         run: npm run test:moodle:courses
@@ -110,7 +109,7 @@ jobs:
         run: npm run test:moodle
       - name: Build the portable ZIP without publishing
         run: npm run dist
-      - name: Verify 25 packaged workflows, portable relocation and report PDFs
+      - name: Verify 26 packaged workflows, portable relocation and report PDFs
         run: npm run test:release
       - name: Prepare the verified portable download
         run: node scripts/prepare-distribution.mjs

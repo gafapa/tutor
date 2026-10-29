@@ -1,3 +1,4 @@
+import { prepareTestWindow } from './test-profile.mjs';
 import { _electron as electron } from 'playwright';
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -10,7 +11,8 @@ const env = { ...process.env, TUTOR_DATA_DIR: directory, TUTOR_SMOKE: '1' }; del
 const app = await electron.launch({ executablePath: resolve('release/win-unpacked/Tutor Local.exe'), env, timeout: 60000 });
 const screenshots = [];
 try {
-  const window = await app.firstWindow(); await window.evaluate(() => window.tutor.createDemo()); await window.reload();
+  const window = await app.firstWindow(); await prepareTestWindow(window); await window.evaluate(()=>window.tutor.configureAI({provider:'local',modelId:'gemma4-e2b',cloudConsent:false}));
+  await app.evaluate(({app})=>{const hostRequire=typeof require==='function'?require:process.mainModule.require.bind(process.mainModule);const {createRequire}=hostRequire('node:module'),{join}=hostRequire('node:path');const {AIService}=createRequire(join(app.getAppPath(),'package.json'))('./build/electron/ai-service.js');AIService.prototype.complete=async()=> '2 + 2 = 5';}); await window.evaluate(() => window.tutor.createDemo()); await window.reload();
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(960, 800));
   await window.getByRole('button', { name: 'Materiales', exact: true }).click(); await window.getByRole('button', { name: 'Leer imagen o PDF escaneado', exact: true }).click();
   const shot = async name => { const path = `test-results/packaged-ocr-${name}-960.png`; const bytes = await window.screenshot({ path }); screenshots.push({ path, sha256: createHash('sha256').update(bytes).digest('hex') }); };

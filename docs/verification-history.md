@@ -29,6 +29,8 @@ Detailed pre-0.14 narratives are retained in Git history rather than repeated in
 - [Windows 0.18](windows-0.18-verification.md).
 - [Windows 0.19](windows-0.19-verification.md): preceding installer and portfolio tasks.
 - [Windows 0.20](windows-0.20-verification.md): portable password and relocation.
-- [Windows 0.21](windows-0.21-verification.md): current guided cycle, 222 domain tests and 25 packaged workflows.
+- [Windows 0.21](windows-0.21-verification.md): guided cycle, 222 domain tests and 25 packaged workflows.
+
+- [Windows 0.22](windows-0.22-verification.md): Moodle-first onboarding, reviewed programme PDFs, multimodal/account AI, readable history; 231 domain tests and 26 packaged workflows.
 
 Hashes, sizes and source provenance belong to each record. Later commits/pushes do not rebuild those artifacts or publish a binary release.

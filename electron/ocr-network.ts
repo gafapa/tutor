@@ -1,4 +1,4 @@
-/** OCR receives local bytes only. Block accidental outbound traffic in both worker contexts. */
+/** Page rendering receives local bytes only. Block accidental outbound traffic in both worker contexts. */
 export function denyOcrNetwork() {
   const blocked = () => { throw new Error('El reconocimiento local no permite conexiones de red.'); };
   globalThis.fetch = async () => { throw new Error('El reconocimiento local no permite conexiones de red.'); };
