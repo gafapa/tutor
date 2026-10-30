@@ -37,4 +37,3 @@ Detailed pre-0.14 narratives are retained in Git history rather than repeated in
 - [Windows 0.23.1](windows-0.23.1-verification.md): a single root executable with runtime files and documentation in subdirectories.
 
 Hashes, sizes and source provenance belong to each record. Later commits/pushes do not rebuild those artifacts or publish a binary release.
-
