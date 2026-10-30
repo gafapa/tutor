@@ -50,7 +50,10 @@ const portable = app.isPackaged && existsSync(join(dirname(process.execPath), 't
 let startupError: unknown;
 if (portable) {
   try {
-    const directory = join(dirname(process.execPath), 'Data');
+    const marker=JSON.parse(readFileSync(join(dirname(process.execPath),'tutor-portable.json'),'utf8'));
+    if(marker.format!=='tutor-portable'||![1,2].includes(marker.version))throw new Error('El marcador del portable no es válido. Extrae de nuevo el ZIP completo.');
+    const portableRoot=marker.version===2?dirname(dirname(process.execPath)):dirname(process.execPath);
+    const directory = join(portableRoot, 'Data');
     mkdirSync(directory, { recursive: true });
     app.setPath('userData', directory);
     for (const [name, child] of [['sessionData', 'session'], ['temp', 'temp'], ['crashDumps', 'crashes']] as const) {

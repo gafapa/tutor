@@ -1,10 +1,11 @@
 import {tmpdir} from 'node:os';
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { spawn, execFile } from 'node:child_process';
+import {promisify} from 'node:util';
 import { createHash, randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { cp, mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 const require = createRequire(import.meta.url), pkg = JSON.parse(await readFile('package.json', 'utf8'));
 const { extractFile } = require('@electron/asar');
@@ -14,9 +15,15 @@ for (const entry of await readdir('release/win-unpacked', { recursive: true })) 
   if (parts[0] === 'data' || filename.endsWith('.tutor') || ['vault-key.bin', 'portable-key.bin'].includes(filename)) throw new Error('Packaging refused: the unpacked program contains a learner profile or key. Preserve those files outside the distribution.');
 }
 const name = `Tutor-Local-${pkg.version}-Portable`, parent = resolve(tmpdir(),'tutor-portable-package', randomUUID()), folder = join(parent, name);
-await mkdir(parent, { recursive: true }); await cp('release/win-unpacked', folder, { recursive: true, errorOnExist: true, force: false });
-await writeFile(join(folder, 'tutor-portable.json'), JSON.stringify({ format: 'tutor-portable', version: 1 }) + '\n');
-await writeFile(join(folder, 'README.txt'), `Tutor Local ${pkg.version} - Windows x64 portable alpha\n\nExtract the complete folder to a writable drive and open Tutor Local.exe. No workspace password or installation is required. Moodle is the starting point; the connector only reads data.\n\nEducational history is stored as readable SQLite in Data/learning.sqlite. Credentials are protected separately for the Windows user/computer; reconnect Moodle after moving to another account or PC. Optional encrypted backups remain available.\n\nKeep Data and tutor-portable.json with the executable. Close the application before moving, updating or unplugging the drive. This alpha starts a new workspace instead of migrating earlier encrypted profiles. Existing files are preserved.\n\nChoose local AI models according to detected hardware, or explicitly authorize context processing with your own Claude/Codex account using the official native executable. Account tools require separate installation and sign-in. No API key is requested. Local model downloads are optional and checksum verified.\n\nThis development build is unsigned and has not been published by this command.\n`);
+await mkdir(parent, { recursive: true }); await cp('release/win-unpacked', join(folder,'App'), { recursive: true, errorOnExist: true, force: false });
+await writeFile(join(folder, 'App/tutor-portable.json'), JSON.stringify({ format: 'tutor-portable', version: 2 }) + '\n');
+await mkdir(join(folder,'Docs'),{recursive:true});
+for(const entry of await readdir(join(folder,'App')))if(/^LICENSE/i.test(entry))await rename(join(folder,'App',entry),join(folder,'Docs',entry));
+const {getMakeNsisPath}=require('app-builder-lib/out/toolsets/windows.js');
+const compiler=await getMakeNsisPath();
+await cp(join(compiler.env?.NSISDIR??dirname(compiler.path),'COPYING'),join(folder,'Docs/LICENSE-NSIS.txt'));
+await promisify(execFile)(compiler.path,['/V2','/DOUTPUT='+join(folder,'Tutor Local.exe'),'/DICON='+resolve('assets/icon.ico'),'/DVERSION='+pkg.version,resolve('assets/portable-launcher.nsi')],{windowsHide:true,env:{...process.env,...compiler.env}});
+await writeFile(join(folder, 'Docs/README.txt'), `Tutor Local ${pkg.version} - Windows x64 portable alpha\n\nExtract the complete folder to a writable drive and open Tutor Local.exe. No workspace password or installation is required. Moodle is the starting point; the connector only reads data.\n\nEducational history is stored as readable SQLite in Data/learning.sqlite. Credentials are protected separately for the Windows user/computer; reconnect Moodle after moving to another account or PC. Optional encrypted backups remain available.\n\nKeep App, Docs and Data with the root executable. App contains the runtime and portable marker. Close the application before moving, updating or unplugging the drive. This alpha starts a new workspace instead of migrating earlier encrypted profiles. Existing files are preserved.\n\nChoose local AI models according to detected hardware, or explicitly authorize context processing with your own Claude/Codex account using the official native executable. Account tools require separate installation and sign-in. No API key is requested. Local model downloads are optional and checksum verified.\n\nThis development build is unsigned and has not been published by this command.\n`);
 const zip = resolve('release', `${name}.zip`);
 const temporaryZip = resolve('release', `${name}-${randomUUID()}.zip`);
 await new Promise((resolveResult, reject) => {

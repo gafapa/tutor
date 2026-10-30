@@ -8,11 +8,11 @@ The interface is currently in Spanish. Reports support personal reflection and o
 
 ## Portable use
 
-The current development version is **0.23.0 alpha**. The verified local download is `release/distribution/Tutor-Local-0.23.0-Portable.zip`, with an adjacent SHA-256 file and verification manifest. See [0.23 qualification and limits](docs/windows-0.23-verification.md). The binary has not been published to GitHub Releases.
+The current development version is **0.23.1 alpha**. The verified local download is `release/distribution/Tutor-Local-0.23.1-Portable.zip`, with an adjacent SHA-256 file and verification manifest. See [0.23 qualification and limits](docs/windows-0.23.1-verification.md). The binary has not been published to GitHub Releases.
 
 1. Extract the complete ZIP to a writable local drive or USB drive.
 2. Open `Tutor Local.exe`. Onboarding starts with the school Moodle connection; there is no workspace password.
-3. Keep the complete folder, including `tutor-portable.json` and the adjacent `Data` folder. Close the app before moving it or unplugging the drive.
+3. Keep the complete folder, including `App`, `Docs` and `Data` (created on first launch). Close the app before moving it or unplugging the drive.
 
 No installation, administrator privileges, Node.js, Python or Ollama is required. Document preparation, semantic search and the local AI engine are included. Settings offers six pinned, checksum-verified local models: four text-only Qwen models and multimodal Gemma 4 E2B/E4B (including their visual projectors), with a RAM-based recommendation and detected CPU/GPU information. The runtime can select a compatible Vulkan GPU automatically, with CPU fallback and a CPU-only setting. Alternatively, authorize context processing through your own Claude/Codex account and its separately installed official native executable. Planning, materials and the exercise bank work without that download.
 

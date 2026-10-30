@@ -88,7 +88,7 @@ test('la publicación vuelve a comprobar el ejecutable descargado del artefacto'
 async function portableFixture() {
   const f = await fixture(), portableName = `Tutor-Local-${version}-Portable.zip`, sha256 = createHash('sha256').update(f.bytes).digest('hex');
   const portable = { path: `release/${portableName}`, bytes: f.bytes.length, sha256 };
-  const proof = { version, portable, zipIntegrity: true, extractedZipExecuted: true, noPasswordRequired: true, plainEducationalHistory: true, movedFolderReopened: true, portableDataPaths: true, noWindowsKey: true, actualBundledSemanticModelBeforeAndAfterMove: true };
+  const proof = { version, portable, singleRootExecutable:true, rootLauncherExecuted:true, nestedRuntime:true, zipIntegrity: true, extractedZipExecuted: true, noPasswordRequired: true, plainEducationalHistory: true, movedFolderReopened: true, portableDataPaths: true, noWindowsKey: true, actualBundledSemanticModelBeforeAndAfterMove: true };
   Object.assign(f.release, { portable, checks: ['desktop', 'portable'], packagedChecks: 2, vulkanAssetsVerified: true, studentExperienceVerified: true }); await f.save();
   await writeFile(join(f.directory, 'release', portableName), f.bytes);
   await writeFile(join(f.directory, 'release', portableName + '.sha256'), `${sha256}  ${portableName}\n`);

@@ -1,6 +1,6 @@
 # Requirements and implementation evidence
 
-This matrix describes the student-first Windows x64 portable application at version 0.23.0 alpha, educational schema 18. The [product scope](product-scope.md) supersedes historical requirements. All 80 original identifiers remain stable; excluded features do not count as completed work.
+This matrix describes the student-first Windows x64 portable application at version 0.23.1 alpha, educational schema 18. The [product scope](product-scope.md) supersedes historical requirements. All 80 original identifiers remain stable; excluded features do not count as completed work.
 
 **Implemented** means inspected implementation/checks cover the supported behavior. **Partial** means capability or qualification is incomplete. **Pending** means sufficient implementation is absent. **Out of scope** means excluded. Implemented rules may still need educational validation; tests do not establish learning effectiveness.
 
