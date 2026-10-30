@@ -4,7 +4,7 @@ import { randomUUID, randomBytes } from 'node:crypto';
 import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { Store } from '../electron/store';
-import { programmeChunks, validateProgrammeRows } from '../electron/programme';
+import { programmeChunks, validateProgrammeRows, groundProgrammeRows } from '../electron/programme';
 import { recommendedModel, MODEL_CATALOG, modelDefinition } from '../electron/model-catalog';
 import { accountEnvironment, CodexAccount } from '../electron/account-ai';
 import { moodleLearningContext } from '../electron/moodle-context';
@@ -32,7 +32,28 @@ test('programme parsing rejects invented quotes, wrong pages and missing text wi
   assert.throws(()=>validateProgrammeRows([{...rows[0],page:2}],text),/no existe/);
   const long='abcde'.repeat(1800);const chunks=programmeChunks(long+'\fsecond page');assert.equal(chunks.at(-1)?.page,2);
   const reconstructed=chunks.filter(c=>c.page===1).map((c,i)=>i?c.text.slice(300):c.text).join('');assert.ok(reconstructed.length>=long.length-300);
-  assert.throws(()=>programmeChunks(' \f '),/no contiene texto/);assert.throws(()=>programmeChunks('x'.repeat(500000)),/Divide/);
+  assert.throws(()=>programmeChunks(' \f '),/no contiene texto/);assert.throws(()=>programmeChunks('x'.repeat(2200000)),/Divide/);
+});
+test('programme references use trusted physical pages and restore only original whitespace',()=>{
+  const chunk={page:5,text:'Unit (1):\n  Fractions + ratios. Footer: 38 of 5.'};
+  const grounded=groundProgrammeRows([{...rows[0],page:38,quote:'Unit (1): Fractions + ratios.'}],chunk);
+  assert.equal(grounded[0].page,5);assert.equal(grounded[0].quote,'Unit (1):\n  Fractions + ratios.');
+  assert.throws(()=>groundProgrammeRows([{...rows[0],quote:'Unit 1: invented fractions.'}],chunk),/no coincide/);
+  assert.throws(()=>groundProgrammeRows([{...rows[0],quote:'Other page only.'}],chunk),/no coincide/);
+  assert.equal(validateProgrammeRows(grounded,'\f\f\f\f'+chunk.text).length,1);
+});
+test('a programme reuses existing source material and prevents duplicate curriculum after backup restore',async()=>{
+  const directory=resolve('.tools/orientation-tests',randomUUID());await mkdir(directory,{recursive:true});
+  const store=await Store.open(join(directory,'learning.sqlite'),randomBytes(32),wasm,true);
+  try{
+    const subject=store.createSubject({name:'Mathematics',level:'ESO',teacher:'',goals:'',color:'sage'});
+    store.addMaterial(subject.id,'Downloaded Moodle programme','pdf',text,2);
+    const original=store.snapshot().materials[0];store.importProgramme(subject.id,'Selected PDF.pdf',text,rows);
+    const snapshot=store.snapshot();assert.deepEqual(snapshot.materials,[original]);assert.deepEqual(snapshot.units[0].materialIds,[original.id]);assert.match(snapshot.units[0].objectives,/Downloaded Moodle programme/);
+    const backup=store.exportData();store.importData(backup);
+    assert.throws(()=>store.importProgramme(subject.id,'Selected again.pdf',text,rows),/ya está importada/);
+    assert.equal(store.snapshot().units.length,1);assert.equal(store.snapshot().curriculum.length,1);assert.equal(store.snapshot().attempts.length,0);
+  }finally{store.close();}
 });
 test('the model catalogue pins every download and bases recommendations on memory limits',()=>{
   assert.equal(recommendedModel(4).id,'qwen-1.5b');assert.equal(recommendedModel(8).id,'qwen-3b');assert.equal(recommendedModel(16).id,'gemma4-e2b');assert.equal(recommendedModel(32).id,'gemma4-e4b');
@@ -41,7 +62,7 @@ test('the model catalogue pins every download and bases recommendations on memor
 });
 test('provider processes cannot inherit Moodle tokens or API keys',()=>{
   process.env.TUTOR_LIVE_STUDENT_PASSWORD='synthetic-not-a-real-password';process.env.ANTHROPIC_API_KEY='synthetic-not-a-real-key';
-  try{for(const provider of ['codex','claude'] as const){const env=accountEnvironment(resolve('.tools/account-test'),provider);assert.equal(env.TUTOR_LIVE_STUDENT_PASSWORD,undefined);assert.equal(env.ANTHROPIC_API_KEY,undefined);assert.equal(env.OPENAI_API_KEY,undefined);}}finally{delete process.env.TUTOR_LIVE_STUDENT_PASSWORD;delete process.env.ANTHROPIC_API_KEY;}
+  try{for(const provider of ['codex','claude'] as const){const env=accountEnvironment(provider);assert.equal(env.TUTOR_LIVE_STUDENT_PASSWORD,undefined);assert.equal(env.ANTHROPIC_API_KEY,undefined);assert.equal(env.OPENAI_API_KEY,undefined);assert.equal(env.CODEX_HOME,provider==='codex'?process.env.CODEX_HOME:undefined);assert.equal(env.CLAUDE_CONFIG_DIR,provider==='claude'?process.env.CLAUDE_CONFIG_DIR:undefined);}}finally{delete process.env.TUTOR_LIVE_STUDENT_PASSWORD;delete process.env.ANTHROPIC_API_KEY;}
 });
 test('Moodle tutoring context stays in the selected subject and excludes withdrawn work and credentials',()=>{
   const item=(subjectId:string,active:boolean,title:string)=>({subjectId,active,updatedAt:'2026-10-29',data:{kind:'activity',title,url:'https://example.test/course',instructions:'Explain fractions',submission:{text:'Own response'},submissionFeedback:'Check denominator'}} as LmsItem);
@@ -50,6 +71,6 @@ test('Moodle tutoring context stays in the selected subject and excludes withdra
 });
 test('Codex account protocol initializes, uses ChatGPT login and only accepts a completed turn',async()=>{
   const root=resolve('.tools/orientation-tests',randomUUID());await mkdir(root,{recursive:true});const fixture=join(root,'fake-codex.cjs');
-  await writeFile(fixture,`const readline=require('node:readline');const send=v=>process.stdout.write(JSON.stringify(v)+'\\n');readline.createInterface({input:process.stdin}).on('line',line=>{const v=JSON.parse(line);if(!v.id)return;let result={};if(v.method==='account/login/start')result={authUrl:'https://auth.openai.com/synthetic-login'};if(v.method==='account/read')result={account:{type:'chatgpt'}};if(v.method==='thread/start'){if(v.params.sandbox!=='read-only'||v.params.approvalPolicy!=='never')process.exit(9);result={thread:{id:'thread'}};}send({id:v.id,result});if(v.method==='turn/start'){const image=v.params.input.find(i=>i.type==='localImage');if(image&&!require('node:fs').existsSync(image.path))process.exit(10);send({method:'item/agentMessage/delta',params:{threadId:'thread',delta:'Intenta comparar los denominadores.'}});send({method:'turn/completed',params:{threadId:'thread',turn:{status:'completed'}}});}});`);
-  const client=new CodexAccount(process.execPath,root,[fixture]);try{assert.match(await client.login(),/^https:\/\/auth.openai.com/);assert.match(await client.status(),/conectada/);assert.match(await client.complete('Synthetic teaching request',new AbortController().signal),/denominadores/);assert.match(await client.complete('Read selected image',new AbortController().signal,undefined,{mime:'image/jpeg',base64:Buffer.from('synthetic image bytes').toString('base64')}),/denominadores/);assert.deepEqual(await readdir(join(root,'empty')),[]);await client.logout();}finally{client.stop();}
+  await writeFile(fixture,`const readline=require('node:readline');const send=v=>process.stdout.write(JSON.stringify(v)+'\\n');readline.createInterface({input:process.stdin}).on('line',line=>{const v=JSON.parse(line);if(!v.id)return;let result={};if(v.method==='account/login/start')result={authUrl:'https://auth.openai.com/synthetic-login'};if(v.method==='account/read')result={account:{type:'chatgpt'}};if(v.method==='config/read')result={config:{mcp_servers:{synthetic:{enabled:true}}}};if(v.method==='thread/start'){if(v.params.config.mcp_servers.synthetic.enabled!==false||v.params.config['features.apps']!==false||v.params.config['features.plugins']!==false)process.exit(11);if(v.params.sandbox!=='read-only'||v.params.approvalPolicy!=='never')process.exit(9);result={thread:{id:'thread'}};}send({id:v.id,result});if(v.method==='turn/start'){const image=v.params.input.find(i=>i.type==='localImage');if(image&&!require('node:fs').existsSync(image.path))process.exit(10);send({method:'item/agentMessage/delta',params:{threadId:'thread',delta:'Intenta comparar los denominadores.'}});send({method:'turn/completed',params:{threadId:'thread',turn:{status:'completed'}}});}});`);
+  const client=new CodexAccount(process.execPath,root,[fixture]);try{assert.match(await client.login(),/^https:\/\/auth.openai.com/);assert.match(await client.status(),/conectada/);assert.match(await client.complete('Synthetic teaching request',new AbortController().signal),/denominadores/);assert.match(await client.complete('Read selected image',new AbortController().signal,undefined,{mime:'image/jpeg',base64:Buffer.from('synthetic image bytes').toString('base64')}),/denominadores/);assert.deepEqual(await readdir(join(root,'empty')),[]);client.stop();}finally{client.stop();}
 });

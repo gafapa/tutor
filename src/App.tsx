@@ -24,6 +24,7 @@ import Pedagogy from './pages/Pedagogy';
 import Connections from './pages/Connections';
 import Reports from './pages/Reports';
 import Goals from './pages/Goals';
+import {SCHOOL_YEARS} from '../shared/student';
 import { dayKey } from '../shared/calendar';
 
 const NAV = [
@@ -50,6 +51,8 @@ const NAV = [
 export default function App() {
   const [data, setData] = useState<Snapshot>();
   const [fatal, setFatal] = useState('');
+  const [mobileMenuOpen,setMobileMenuOpen]=useState(false);
+  const [toolsOpen,setToolsOpen]=useState(()=>sessionStorage.getItem('tutor-tools')==='open');
   const [page, setPage] = useState<Page>('home');
   const [subjectId, setSubjectId] = useState('');
   const [learningInterventionId,setLearningInterventionId]=useState<string>();
@@ -60,7 +63,7 @@ export default function App() {
   const [toast, setToast] = useState<{ message: string; error: boolean }>();
   const runningSession = data?.studySessions.find(s => s.status === 'running');
   const activeExam = data?.mockExams.find(exam => exam.status === 'active');
-  useEffect(() => { if (activeExam) { setSubjectId(activeExam.subjectId); setPage('mocks'); setNewSubject(false); setEditingSubject(undefined); } }, [activeExam?.id]);
+  useEffect(() => { if (activeExam) { setSubjectId(activeExam.subjectId); setPage('mocks'); setMobileMenuOpen(false); setNewSubject(false); setEditingSubject(undefined); } }, [activeExam?.id]);
   const refresh = useCallback(async () => {
     const snapshot = await window.tutor.snapshot();
     setData(snapshot);
@@ -96,26 +99,27 @@ export default function App() {
     document.documentElement.classList.toggle('high-contrast', Boolean(data?.settings.highContrast));
   }, [data?.settings.largeText, data?.settings.highContrast]);
   const notify = (message: string, error = false) => setToast({ message, error });
-  const navigate = (next: Page, conceptId?: string) => { if(conceptId){const owner=data?.concepts.find(c=>c.id===conceptId)?.subjectId??data?.interventions.find(i=>i.id===conceptId)?.subjectId;if(owner)setSubjectId(owner);} setLearningInterventionId(next==="pedagogy"?conceptId:undefined);setPracticeConceptId(next==="pedagogy"?undefined:next==='connections'?undefined:conceptId);setConnectionProjectId(next==='connections'?conceptId:undefined); setPage(next); document.querySelector('.main-content')?.scrollTo(0, 0); };
+  const navigate = (next: Page, conceptId?: string) => { setMobileMenuOpen(false); if(conceptId){const owner=data?.concepts.find(c=>c.id===conceptId)?.subjectId??data?.interventions.find(i=>i.id===conceptId)?.subjectId;if(owner)setSubjectId(owner);} setLearningInterventionId(next==="pedagogy"?conceptId:undefined);setPracticeConceptId(next==="pedagogy"?undefined:next==='connections'?undefined:conceptId);setConnectionProjectId(next==='connections'?conceptId:undefined); setPage(next); document.querySelector('.main-content')?.scrollTo(0, 0); };
   if (!data) return <div className="boot-screen"><div className="brand-mark"><BookOpen size={29} /></div><h1>Tutor Local</h1>{fatal ? <p role="alert">{fatal}</p> : <Spinner label="Abriendo tu espacio…" />}</div>;
   const subject = data.subjects.find(s => s.id === (activeExam?.subjectId ?? subjectId));
   const props: PageProps = { data, subject, refresh, notify, navigate, practiceConceptId,connectionProjectId,learningInterventionId, onNewSubject: () => setNewSubject(true), onEditSubject: setEditingSubject };
   const pages = { home: Home, materials: Materials, moodle: Moodle, pedagogy: Pedagogy,connections:Connections, reports:Reports, goals:Goals, tutor: Tutor, practice: Practice, progress: Progress, settings: Preferences, plan: Plan, diagnostic: Diagnostic, curriculum: Curriculum, flashcards: Flashcards, portfolio: Portfolio, sessions: Sessions, mocks: Mocks, rubrics: Rubrics };
   const Content = pages[activeExam ? 'mocks' : page];
-  return <div className="app-shell">
-    <aside className="sidebar">
+  return <div className="app-shell" onKeyDown={event=>{if(event.key==='Escape')setMobileMenuOpen(false);}}>
+    <aside className={`sidebar ${mobileMenuOpen?'mobile-menu':''}`}><button className="mobile-close button secondary" onClick={()=>setMobileMenuOpen(false)}>Cerrar herramientas</button>
       <a className="brand" href="#" onClick={event => { event.preventDefault(); if (!activeExam) navigate('home'); }}><span className="brand-mark"><BookOpen size={23} /></span><span>Tutor<span className="brand-local">LOCAL</span></span></a>
       <div className="sidebar-section-label">TU ESPACIO PERSONAL</div>
-      <nav aria-label="Navegación principal">{NAV.map(item => <button key={item.id} className={`nav-item ${page === item.id ? 'active' : ''}`} disabled={Boolean(activeExam) && item.id !== 'mocks'} onClick={() => navigate(item.id)}><item.icon size={19} /><span>{item.label}</span>{page === item.id && <span className="nav-active-dot" />}</button>)}</nav>
+      <nav aria-label="Navegación principal">{NAV.filter(item=>toolsOpen||['home','plan','moodle','tutor','practice'].includes(item.id)||item.id===page).map(item => <button key={item.id} className={`nav-item ${page === item.id ? 'active' : ''}`} disabled={Boolean(activeExam) && item.id !== 'mocks'} onClick={() => navigate(item.id)}><item.icon size={19} /><span>{item.label}</span>{page === item.id && <span className="nav-active-dot" />}</button>)}</nav><button className="nav-item tools-toggle" aria-expanded={toolsOpen} disabled={Boolean(activeExam)} onClick={()=>{setToolsOpen(!toolsOpen);sessionStorage.setItem('tutor-tools',!toolsOpen?'open':'closed');}}><Layers size={19}/><span>{toolsOpen?'Menos herramientas':'Más herramientas'}</span></button>
       <div className="subject-section"><div className="sidebar-section-label">MIS ASIGNATURAS<button className="icon-button" aria-label="Añadir asignatura" disabled={Boolean(activeExam)} onClick={() => setNewSubject(true)}><Plus size={16} /></button></div>
         <div className="subject-list">{data.subjects.map(item => <button key={item.id} disabled={Boolean(activeExam)} className={`subject-item ${item.id === subjectId ? 'selected' : ''}`} onClick={() => { setSubjectId(item.id); navigate('home'); }}><span className={`subject-dot ${item.color}`} /><span>{item.name}</span>{item.isDemo && <span className="example-marker" title="Asignatura de ejemplo">Ej.</span>}</button>)}{!data.subjects.length && <p className="sidebar-empty">Tu primera asignatura<br />empieza aquí.</p>}</div>
         <button className="add-subject" disabled={Boolean(activeExam)} onClick={() => setNewSubject(true)}><Plus size={16} /> Nueva asignatura</button>
       </div>
-      <div className="sidebar-bottom"><div className="local-note"><ShieldCheck size={20} /><div><strong>Tu aprendizaje es tuyo.</strong><span>Guardado en este ordenador.</span></div><Leaf className="local-leaf" size={60} /></div><button className={`nav-item ${page === 'settings' ? 'active' : ''}`} disabled={Boolean(activeExam)} onClick={() => navigate('settings')}><Settings size={19} /> Ajustes</button><div className="profile"><span className="avatar">{data.settings.name.slice(0, 1).toUpperCase() || 'T'}</span><div><strong>{data.settings.name || 'Mi perfil'}</strong><span>Cuenta local · sin registro</span></div><button className="icon-button" aria-label="Editar mi perfil" disabled={Boolean(activeExam)} onClick={() => navigate('settings')}><ArrowUpRight size={17} /></button></div></div>
+      <div className="sidebar-bottom"><div className="local-note"><ShieldCheck size={20} /><div><strong>Tu aprendizaje es tuyo.</strong><span>Guardado en este ordenador.</span></div><Leaf className="local-leaf" size={60} /></div><button className={`nav-item ${page === 'settings' ? 'active' : ''}`} disabled={Boolean(activeExam)} onClick={() => navigate('settings')}><Settings size={19} /> Ajustes</button><div className="profile"><span className="avatar">{data.settings.name.slice(0, 1).toUpperCase() || 'T'}</span><div><strong>{data.settings.name || 'Mi perfil'}</strong><span>{data.settings.schoolYear?SCHOOL_YEARS[data.settings.schoolYear]:'Tu espacio personal'}</span></div><button className="icon-button" aria-label="Editar mi perfil" disabled={Boolean(activeExam)} onClick={() => navigate('settings')}><ArrowUpRight size={17} /></button></div></div>
     </aside>
-    <div className="workspace"><header className="topbar"><div className="breadcrumbs">Mi espacio <span>/</span><span className="breadcrumb-current">{page === 'settings' ? 'Ajustes' : subject?.name ?? 'Inicio'}</span>{subject?.isDemo && page !== 'settings' && <span className="demo-chip">Ejemplo</span>}</div><div className="topbar-tools">{runningSession && <RunningSessionPill session={runningSession} onOpen={() => { setSubjectId(runningSession.subjectId); navigate('sessions'); }} />}<PrivacyChip /></div></header>
+    <div className="workspace"><header className="topbar"><div className="breadcrumbs">Mi espacio <span>/</span><span className="breadcrumb-current">{page === 'settings' ? 'Ajustes' : subject?.name ?? 'Inicio'}</span>{subject?.isDemo && page !== 'settings' && <span className="demo-chip">Ejemplo</span>}</div><label className="quick-subject"><span className="sr-only">Cambiar asignatura</span><select aria-label="Cambiar asignatura" disabled={Boolean(activeExam)} value={subject?.id??''} onChange={event=>{setSubjectId(event.target.value);navigate('home');}}>{data.subjects.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label><div className="topbar-tools">{runningSession && <RunningSessionPill session={runningSession} onOpen={() => { setSubjectId(runningSession.subjectId); navigate('sessions'); }} />}<PrivacyChip /></div></header>
       <main className={`main-content page-${page}`} id="main-content">{!data.settings.onboardingCompleted && !activeExam ? <Onboarding {...props}/> : <Content key={page === 'moodle' ? 'moodle' : `${page}:${subjectId}`} {...props} />}</main>
     </div>
+    <nav className="student-dock" aria-label="Accesos rápidos">{NAV.filter(item=>['home','plan','tutor','practice'].includes(item.id)).map(item=><button key={item.id} disabled={Boolean(activeExam)} aria-current={page===item.id?'page':undefined} onClick={()=>navigate(item.id)}><item.icon size={22}/><span>{({home:'Hoy',plan:'Mi plan',tutor:'Tutor',practice:'Practicar'} as Record<string,string>)[item.id]}</span></button>)}<button disabled={Boolean(activeExam)} aria-expanded={mobileMenuOpen} onClick={()=>{setToolsOpen(true);sessionStorage.setItem('tutor-tools','open');setMobileMenuOpen(!mobileMenuOpen);}}><Layers size={22}/><span>Más</span></button></nav>
     {newSubject && <NewSubject onClose={() => setNewSubject(false)} onCreate={async input => {
       const created = await window.tutor.createSubject(input); await refresh(); setSubjectId(created.id); setNewSubject(false); navigate('home'); notify('Tu asignatura está lista. Añade los primeros materiales.');
     }} />}

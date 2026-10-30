@@ -1,0 +1,4 @@
+import {SCHOOL_YEARS,type SchoolYear} from '../../shared/student';
+import type {PageProps} from '../ui';
+import {errorMessage} from '../ui';
+export default function SchoolYearPicker({data,refresh,notify}:Pick<PageProps,'data'|'refresh'|'notify'>){return <section className="school-year-picker"><label>¿En qué curso estás?<select aria-label="Mi curso" value={data.settings.schoolYear??''} onChange={event=>{if(!event.target.value)return;void window.tutor.updateSettings({schoolYear:event.target.value as SchoolYear}).then(refresh).catch(error=>notify(errorMessage(error),true));}}><option value="" disabled>Elige tu curso</option>{Object.entries(SCHOOL_YEARS).map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label><p>El mismo espacio para todos. Las explicaciones y la ayuda se adaptan a tu curso; puedes cambiarlo cuando quieras.</p></section>;}

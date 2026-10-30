@@ -61,16 +61,21 @@ export class OcrService {
         if (capture.subjectId !== options.subjectId || capture.recognition.language !== options.language || capture.sourcePage !== (capture.sourceFormat === 'pdf' ? options.firstPage + index : 1) || capture.sourceFormat === 'pdf' && captures.length !== options.lastPage - options.firstPage + 1) throw new Error('Las páginas reconocidas no corresponden a la selección.');
       }
   }
-  async programmePages(path: string, subjectId: string, pageCount: number, signal: AbortSignal): Promise<Capture[]> {
+  async programmePages(path: string, subjectId: string, pageCount: number, signal: AbortSignal): Promise<{text:string;pages:{page:number;image:Capture['image'];text:string}[]}> {
     this.ai.assertVision(); this.store.requireSubject(subjectId); this.prune();
-    if (pageCount > 10) throw new Error('Esta programación contiene páginas escaneadas. Divide el PDF en documentos de hasta 10 páginas para leerlos con el modelo visual. No se ha importado ninguna página.');
+    if(pageCount<1||pageCount>300)throw new Error('Selecciona un PDF de hasta 300 páginas.');
     if (this.job || this.drafts.size) throw new Error('Termina o descarta las capturas pendientes antes de importar la programación.');
-    const options: OcrOptions = {subjectId,language:'spa',firstPage:1,lastPage:pageCount,rotation:0};
     const job: Job = {controller:new AbortController(),progress:{id:randomUUID(),subjectId,name:'',page:0,total:pageCount,fraction:0,stage:'preparing'}};
-    this.job=job;
+    this.job=job; const texts:string[]=[],pages:{page:number;image:Capture['image'];text:string}[]=[];
     const cancel=()=>job.controller.abort(); signal.addEventListener('abort',cancel,{once:true});
     const check=()=>{signal.throwIfAborted();job.controller.signal.throwIfAborted();this.store.requireSubject(subjectId);if(this.store.hasActiveMock())throw new Error('El contexto ha cambiado.');};
-    try { check(); const captures=await this.read(job,path,options); check(); if(captures.length!==pageCount)throw new Error('El lector no devolvió todas las páginas.'); await this.interpret(job,captures,options,check); return captures; }
+    let sourceHash:string|undefined,totalCharacters=0;
+    try { for(let firstPage=1;firstPage<=pageCount;firstPage+=5){
+      check();const options:OcrOptions={subjectId,language:'spa',firstPage,lastPage:Math.min(pageCount,firstPage+4),rotation:0};
+      const captures=await this.read(job,path,options);check();if(captures.length!==options.lastPage-options.firstPage+1)throw new Error('El lector no devolvió todas las páginas.');
+      await this.interpret(job,captures,options,check);
+      for(const capture of captures){if(sourceHash&&sourceHash!==capture.sourceHash)throw new Error('El PDF cambió durante la lectura. No se ha importado nada.');sourceHash=capture.sourceHash;texts.push(capture.recognition.text);totalCharacters+=capture.recognition.text.length;if(totalCharacters>2000000)throw new Error('La transcripción supera dos millones de caracteres. Divide el PDF.');if(pages.length<10)pages.push({page:capture.sourcePage,image:capture.image,text:capture.recognition.text});}
+    } return {text:texts.join('\f'),pages}; }
     finally {signal.removeEventListener('abort',cancel);if(this.job===job)this.job=undefined;}
   }
   commit(draftId: string, value: Parameters<Store['commitCapture']>[1]) {

@@ -14,3 +14,5 @@ import './reports.css';
 import './goals.css';
 
 import './semantic.css';
+
+import './student.css';

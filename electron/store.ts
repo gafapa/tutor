@@ -1,4 +1,6 @@
 import initSqlJs, { type Database, type SqlJsStatic } from 'sql.js';
+import {validateLinks,validateSchedule} from './support.js';
+import type {MoodleLinkProposal,ScheduleProposal} from '../shared/support.js';
 import { createHash, randomUUID } from 'node:crypto';
 import {z} from 'zod';
 import { existsSync, readFileSync, writeFileSync, renameSync } from 'node:fs';
@@ -200,7 +202,7 @@ export class Store {
       flashcards, cardReviews, cardRevisions: this.list<FlashcardRevision>('card_revisions'),
       cardSchedules: flashcards.filter(c => c.approved).map(card => scheduleCard(card, cardReviews)),
       portfolio: this.list<PortfolioEntry>('portfolio'), events: this.list<EducationalEvent>('events'),
-      settings: { name: settings.name, dailyMinutes: settings.dailyMinutes, largeText: settings.largeText, highContrast: settings.highContrast, onboardingCompleted: settings.onboardingCompleted, aiProvider: settings.aiProvider, cloudConsent: settings.cloudConsent, localModelId: settings.localModelId, codexExecutable: settings.codexExecutable, claudeExecutable: settings.claudeExecutable }
+      settings: { schoolYear:settings.schoolYear, acceleration:settings.acceleration, name: settings.name, dailyMinutes: settings.dailyMinutes, largeText: settings.largeText, highContrast: settings.highContrast, onboardingCompleted: settings.onboardingCompleted, aiProvider: settings.aiProvider, cloudConsent: settings.cloudConsent, localModelId: settings.localModelId, codexExecutable: settings.codexExecutable, claudeExecutable: settings.claudeExecutable }
     };
   }
 
@@ -950,21 +952,36 @@ export class Store {
       return { portfolioId: entry!.id, analysisId: analysis.id };
     });
   }
+  commitSubjectSupport(subjectId:string,links:MoodleLinkProposal[],schedule:ScheduleProposal[],createStudyTasks:boolean){
+    this.requireSubject(subjectId); const snapshot=this.snapshot();
+    links=validateLinks(links,subjectId,snapshot);schedule=validateSchedule(schedule,subjectId,snapshot);
+    return this.transaction(()=>{
+      for(const row of links){const task=snapshot.tasks.find(task=>task.id===row.taskId)!;this.replace('tasks',{...task,unitId:row.unitId,conceptIds:row.conceptIds,curriculumIds:row.curriculumIds});this.event('moodle.curriculum_linked',subjectId,{taskId:task.id,itemId:row.itemId,revision:row.revision,quote:row.quote,reason:row.reason});}
+      for(const row of schedule){const unit=snapshot.units.find(unit=>unit.id===row.unitId)!;this.replace('units',{...unit,startsOn:row.startsOn,endsOn:row.endsOn});
+        if(createStudyTasks){const marker=`Planificación de la unidad ${unit.id}`;const previous=snapshot.tasks.find(task=>!task.lms&&task.unitId===unit.id&&task.notes.includes(marker));
+          if(!previous){const task:StudyTask={id:randomUUID(),subjectId,title:`Estudiar: ${unit.title}`.slice(0,120),notes:marker+' · Fechas revisadas por ti. '+(row.estimated?'Duración estimada.':'Referencia: '+row.quote),dueDate:row.endsOn,estimatedMinutes:20,unitId:unit.id,conceptIds:unit.conceptIds,curriculumIds:unit.curriculumIds,status:'pending',createdAt:new Date().toISOString(),completedAt:null};this.put('tasks',task);}
+          else if(previous.status==='pending')this.replace('tasks',{...previous,dueDate:row.endsOn});
+        }
+        this.event('unit.schedule_confirmed',subjectId,{unitId:unit.id,estimated:row.estimated,quote:row.quote});
+      }
+    });
+  }
   importProgramme(subjectId: string, name: string, text: string, rows: import('../shared/setup.js').ProgrammeRow[]) {
     this.requireSubject(subjectId);
     ({ name, text } = materialInput.parse({ subjectId, name, kind: 'pdf', text, pageCount: text.split('\f').length }));
     rows = validateProgrammeRows(rows,text);
     const hash = createHash('sha256').update(text).digest('hex');
-    if (this.list<Material>('materials').some(m => m.subjectId === subjectId && m.hash === hash)) throw new Error('Esta programación ya está en los materiales. Conserva o edita las unidades existentes.');
+    const existing=this.list<Material>('materials').find(m=>m.subjectId===subjectId&&m.hash===hash);
+    if(this.list<EducationalEvent>('events').some(event=>event.subjectId===subjectId&&event.type==='programme.imported'&&(event.payload.sourceHash===hash||existing&&event.payload.materialId===existing.id)))throw new Error('Esta programación ya está importada. Conserva o edita las unidades existentes.');
     return this.transaction(() => {
-      const materialId=randomUUID(),createdAt=new Date().toISOString();
-      this.put('materials',{id:materialId,subjectId,name,kind:'pdf',text,pageCount:text.split('\f').length,hash,version:1,createdAt});
+      const materialId=existing?.id??randomUUID(),createdAt=new Date().toISOString();
+      if(!existing)this.put('materials',{id:materialId,subjectId,name,kind:'pdf',text,pageCount:text.split('\f').length,hash,version:1,createdAt});
       const unitCount=this.list<DidacticUnit>('units').filter(u=>u.subjectId===subjectId).length;let position=unitCount;
-      for(const row of rows){const description=`${row.description}\n\n${name} · página ${row.page}: «${row.quote}»`;
+      for(const row of rows){const description=`${row.description}\n\n${existing?.name??name} · página ${row.page}: «${row.quote}»`;
         if(row.kind==='unit')this.put('units',{id:randomUUID(),subjectId,title:row.title,objectives:description,position:position++,startsOn:null,endsOn:null,status:'pending',prerequisiteIds:[],conceptIds:[],curriculumIds:[],materialIds:[materialId],createdAt});
         else this.put('curriculum',{id:randomUUID(),subjectId,kind:row.kind,code:row.code,title:row.title,description,conceptIds:[],relatedIds:[],createdAt});
       }
-      this.event('programme.imported',subjectId,{materialId,rows:rows.length});
+      this.event('programme.imported',subjectId,{materialId,sourceHash:hash,rows:rows.length});
     });
   }
   private guidedContext(value: unknown) {

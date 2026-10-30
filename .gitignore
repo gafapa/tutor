@@ -5,6 +5,7 @@ release/
 .tools/
 test-results/
 tmp/
+output/
 *.log
 .env*
 !.env.example

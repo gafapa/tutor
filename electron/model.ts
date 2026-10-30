@@ -38,9 +38,10 @@ export class LocalModel {
   private verified = false;
   private chatController?: AbortController;
   private stopped = false;
+  private cpuFallback = false;
   readonly modelPath: string;
 
-  constructor(private modelDirectory: string, private runtimeDirectory: string, private definition: ModelDefinition = MODEL) {
+  constructor(private modelDirectory: string, private runtimeDirectory: string, private definition: ModelDefinition = MODEL, private acceleration?: {runtimeDirectory:string;device:string}) {
     this.modelPath = join(modelDirectory, this.definition.filename);
     const installed = this.assets.every(asset => existsSync(join(modelDirectory, asset.filename)) && statSync(join(modelDirectory, asset.filename)).size === asset.bytes);
     this.status = {
@@ -106,7 +107,7 @@ export class LocalModel {
     this.startTask = this.startServer();
     try { await this.startTask; } finally { this.startTask = undefined; }
   }
-  private async startServer() {
+  private async startServer():Promise<void> {
     try {
       this.status.message = 'Preparando el tutor en tu ordenador…';
       if (!this.verified) {
@@ -114,11 +115,13 @@ export class LocalModel {
         this.verified = true;
       }
       if (this.stopped) throw new Error('La aplicación se está cerrando.');
-      const executable = join(this.runtimeDirectory, process.platform === 'win32' ? 'llama-server.exe' : 'llama-server');
+      const useGPU=this.acceleration&&!this.cpuFallback;
+      const runtimeDirectory=useGPU?this.acceleration!.runtimeDirectory:this.runtimeDirectory;
+      const executable = join(runtimeDirectory, process.platform === 'win32' ? 'llama-server.exe' : 'llama-server');
       if (!existsSync(executable)) throw new Error('Falta el motor de IA en esta instalación. Reinstala Tutor Local.');
       const port = await freePort();
       this.endpoint = `http://127.0.0.1:${port}`;
-      const child = spawn(executable, ['--model', this.modelPath, ...(this.definition.vision ? ['--reasoning', 'off'] : []), ...(this.definition.projector ? ['--mmproj', join(this.modelDirectory, this.definition.projector.filename)] : []), '--host', '127.0.0.1', '--port', String(port), '--ctx-size', '8192', '--threads', String(Math.max(1, Math.min(6, availableParallelism() - 1))), '--n-gpu-layers', '0', '--api-key', this.apiKey, '--no-webui', '--offline', '--jinja', '--log-disable'], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], cwd: this.runtimeDirectory });
+      const child = spawn(executable, ['--model', this.modelPath, ...(this.definition.vision ? ['--reasoning', 'off'] : []), ...(this.definition.projector ? ['--mmproj', join(this.modelDirectory, this.definition.projector.filename)] : []), '--host', '127.0.0.1', '--port', String(port), '--ctx-size', '8192', '--threads', String(Math.max(1, Math.min(6, availableParallelism() - 1))), '--n-gpu-layers', useGPU?'auto':'0', ...(useGPU?['--device',this.acceleration!.device,'--fit','on']:[]), '--api-key', this.apiKey, '--no-webui', '--offline', '--jinja', '--log-disable'], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], cwd: runtimeDirectory });
       this.child = child;
       let failed = '';
       child.stdout?.on('data', () => {});
@@ -136,7 +139,7 @@ export class LocalModel {
         try {
           const health = await fetch(`${this.endpoint}/health`, { headers: { Authorization: `Bearer ${this.apiKey}` }, signal: AbortSignal.timeout(1500) });
           if (health.ok) {
-            this.status = { ...this.status, state: 'running', message: 'Tutor activo · procesamiento íntegramente local.' };
+            this.status = { ...this.status, state: 'running', backend:useGPU?'gpu':'cpu', message: this.acceleration&&!this.cpuFallback?'Tutor activo · GPU · procesamiento local.':'Tutor activo · CPU · procesamiento local.' };
             return;
           }
         } catch { /* The server is still loading the model. */ }
@@ -146,16 +149,19 @@ export class LocalModel {
     } catch (error) {
       this.child?.kill();
       this.child = undefined;
+      if(this.acceleration&&!this.cpuFallback&&!this.stopped){this.cpuFallback=true;return this.startServer();}
       this.status = { ...this.status, state: 'error', message: error instanceof Error ? error.message : 'No se puede iniciar el tutor local.' };
       throw error;
     }
   }
-  async complete(messages: { role: string; content: string }[], options: { schema?: Record<string, unknown>; maxTokens?: number; status?: string; image?: { mime: string; base64: string } } = {}): Promise<string> {
+  async complete(messages: { role: string; content: string }[], options: { schema?: Record<string, unknown>; maxTokens?: number; status?: string; image?: { mime: string; base64: string }; signal?: AbortSignal } = {}): Promise<string> {
     if (options.image && !this.definition.vision) throw new Error('El modelo elegido solo admite texto. Selecciona Gemma 4 en Ajustes para leer imágenes.');
     if (this.chatController) throw new Error('Espera a que termine la consulta anterior.');
     const controller = new AbortController();
     this.chatController = controller;
+    const abort=()=>controller.abort();options.signal?.addEventListener('abort',abort,{once:true});if(options.signal?.aborted)abort();
     try {
+      controller.signal.throwIfAborted();
       await this.ensureRunning();
       controller.signal.throwIfAborted();
       if (options.status) this.status.message = options.status;
@@ -174,7 +180,7 @@ export class LocalModel {
       if (controller.signal.aborted) throw new Error('Consulta cancelada.');
       if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) throw new Error('El tutor ha tardado demasiado en responder. Prueba con una consulta más breve.');
       throw error;
-    } finally { this.chatController = undefined; if (this.status.state === 'running') this.status.message = 'Tutor activo · procesamiento íntegramente local.'; }
+    } finally { options.signal?.removeEventListener('abort',abort);this.chatController = undefined; if (this.status.state === 'running') this.status.message = this.status.backend==='gpu'?'Tutor activo · GPU · procesamiento local.':'Tutor activo · CPU · procesamiento local.'; }
   }
   async shutdown() {
     this.stopped = true;

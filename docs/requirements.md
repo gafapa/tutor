@@ -1,6 +1,6 @@
 # Requirements and implementation evidence
 
-This matrix describes the student-first Windows x64 portable application at version 0.22.0 alpha, educational schema 18. The [product scope](product-scope.md) supersedes historical requirements. All 80 original identifiers remain stable; excluded features do not count as completed work.
+This matrix describes the student-first Windows x64 portable application at version 0.23.0 alpha, educational schema 18. The [product scope](product-scope.md) supersedes historical requirements. All 80 original identifiers remain stable; excluded features do not count as completed work.
 
 **Implemented** means inspected implementation/checks cover the supported behavior. **Partial** means capability or qualification is incomplete. **Pending** means sufficient implementation is absent. **Out of scope** means excluded. Implemented rules may still need educational validation; tests do not establish learning effectiveness.
 
@@ -28,7 +28,7 @@ The [Moodle-first alpha contract](moodle-first-alpha.md) supersedes older encryp
 | 16 | Contextual tutor. | Partial: bounded materials, estimates, accepted observations and strategies; subject-level quality evaluation remains pending. |
 | 17 | Progressive hints and verified steps. | Partial: guided attempts before hints, deterministic arithmetic and help history. Arbitrary reasoning/conversational verification remains pending. See [guided cycle](guided-learning-cycle.md). |
 | 18 | Simple reformulation, visuals, examples and analogies. | Partial: explanation mode; specific controls remain pending. |
-| 19 | Practice adapted to difficulty/errors. | Partial: small bank, conversational proposals and numerical variants; broader subject diversity/adaptation remains pending. |
+| 19 | Practice adapted to difficulty/errors. | Partial: bank, numerical variants and source-linked recall/application/reasoning packs adapted to personal work, feedback and course; broader subject diversity/adaptation remains pending. |
 | 20 | Reinforcement and later independent check. | Partial: confirmed difficulties, persistent sequential practice, later-day no-hint checks, reminders/retries. General open-work correction and educational validation remain pending. |
 | 21 | Open problems, real applications and deeper content. | Partial: projects support comparison/application/reflection; systematic adaptation/content selection remains pending. |
 | 22 | Daily study, review and task planning. | Implemented for local data, shared activities, ordering and budgets; planning/connections checks. |
@@ -53,7 +53,7 @@ The [Moodle-first alpha contract](moodle-first-alpha.md) supersedes older encryp
 | 41 | Relevant retrieval within bounded subject context. | Partial: hybrid retrieval, bundled E5 INT8 and citations; real-material/student evaluation remains pending. |
 | 42 | Retrieve materials with personal evidence. | Partial: bounded materials, attempts, observations/strategies; broader coverage/relevance validation remains pending. |
 | 43 | Bound dynamic context. | Implemented with checked limits; prompt tests. |
-| 44 | Local engine configuration and portable data. | Partial: local engine/format; configuration remains limited. Optional Claude/Codex account integrations now exist; real signed-in inference remains to be qualified. |
+| 44 | Local engine configuration and portable data. | Partial: local engine/format; six pinned models, automatic Vulkan/CPU selection and CPU fallback. Optional Claude/Codex account integrations now exist; real signed-in inference remains to be qualified. |
 | 45 | Local classification, anonymization, embeddings and analysis. | Partial: inference, embeddings and quoted proposals; anonymization/broad validation remain pending. |
 | 46 | Minimize, encrypt, delete and export data. | Partial: readable local history, protected credentials, optional encrypted backups, deletion and export; expanded identity separation remains pending. |
 | 47 | Local use without a product account. | Implemented: empty-profile startup; Moodle authentication only for connection. |
@@ -93,7 +93,7 @@ The [Moodle-first alpha contract](moodle-first-alpha.md) supersedes older encryp
 
 ## Verification and priorities
 
-The [0.21 local qualification](windows-0.21-verification.md) records 222 domain tests and 25 packaged workflows. Live Moodle source preparation was read-only; the complete guided cycle uses synthetic data and a simulated later date. The build is unsigned. Another Windows account/computer, clean consumer Windows and educational efficacy remain unqualified. Hosted CI must be checked for the exact commit.
+The [0.23 local qualification](windows-0.23-verification.md) records the current build and checks. Live Moodle source preparation was read-only; the complete guided cycle uses synthetic data and a simulated later date. The build is unsigned. Another Windows account/computer, clean consumer Windows and educational efficacy remain unqualified. Hosted CI must be checked for the exact commit.
 
 Priorities are broader subject practice/feedback quality, additional Moodle scenarios, complete local exports, accessible input and real handwriting/formula evaluation. One correct later check does not establish consolidation. Teacher features, other platforms and hosted application distribution are excluded rather than backlog items.
 

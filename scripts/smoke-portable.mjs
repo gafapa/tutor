@@ -1,3 +1,4 @@
+import {tmpdir} from 'node:os';
 import { _electron as electron } from 'playwright';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -7,7 +8,7 @@ import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 const require=createRequire(import.meta.url),pkg=JSON.parse(await readFile('package.json','utf8'));
 const name=`Tutor-Local-${pkg.version}-Portable`,zip=resolve('release',name+'.zip'),bytes=await readFile(zip),sha256=createHash('sha256').update(bytes).digest('hex');
-const root=resolve('.tools/portable-test',randomUUID());await mkdir(root,{recursive:true});await mkdir('test-results',{recursive:true});
+const root=resolve(tmpdir(),'tutor-portable-test',randomUUID());await mkdir(root,{recursive:true});await mkdir('test-results',{recursive:true});
 execFileSync(require('7zip-bin').path7za,['t',zip],{windowsHide:true,stdio:'pipe'});
 execFileSync(require('7zip-bin').path7za,['x',zip,'-o'+root,'-y'],{windowsHide:true,stdio:'pipe'});
 let folder=join(root,name),app,window;const errors=[];

@@ -104,7 +104,7 @@ try {
   await app.close();
   app = await launch(); window = await app.firstWindow(); await prepareTestWindow(window);
   window.on('pageerror', error => errors.push(error.message));
-  await window.getByRole('heading', { name: 'Este es tu espacio.' }).waitFor();
+  await window.getByRole('heading', { name: '¿Qué hacemos hoy?' }).waitFor();
   const restored = await window.evaluate(() => window.tutor.snapshot());
   assert.equal(restored.subjects.length, 2); assert.equal(restored.materials.length, 4); assert.equal(restored.attempts.length, 3);
   assert.equal(restored.subjects.find(subject => subject.name === 'Matemáticas').course, '3.º');

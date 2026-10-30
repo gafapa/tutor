@@ -1,3 +1,4 @@
+import type { SupportAPI } from './support.js';
 import type { SetupAPI } from './setup.js';
 import type { EducationAPI, EducationSnapshot } from './education.js';
 import type { StudyAPI, StudySnapshot } from './study.js';
@@ -49,6 +50,7 @@ export interface Message {
   retrieval?: 'hybrid' | 'textual'; evidenceIds?: string[];
 }
 export interface ModelStatus {
+  backend?: 'cpu'|'gpu';
   state: 'missing' | 'downloading' | 'ready' | 'running' | 'error';
   progress: number; downloadedBytes: number; totalBytes: number;
   message: string; modelName: string; ramGB: number;
@@ -107,7 +109,7 @@ export interface Exercise {
 }
 export interface ImportReport { imported: number; duplicates: number; errors: string[]; cancelled?: boolean; }
 export interface ImportProgress { subjectId: string; current: number; total: number; name: string; }
-export interface TutorAPI extends EducationAPI, StudyAPI, AssessmentAPI, RubricAPI, LmsAPI, PedagogyAPI,ConnectionAPI, ReportAPI, GoalsAPI, OcrAPI, SemanticAPI, SetupAPI {
+export interface TutorAPI extends SupportAPI, EducationAPI, StudyAPI, AssessmentAPI, RubricAPI, LmsAPI, PedagogyAPI,ConnectionAPI, ReportAPI, GoalsAPI, OcrAPI, SemanticAPI, SetupAPI {
   snapshot(): Promise<Snapshot>;
   createSubject(input: SubjectInput): Promise<Subject>;
   updateSubject(input: SubjectInput & { id: string }): Promise<Subject>;

@@ -8,7 +8,7 @@ function sheet(title, text) {
   text.split('\n').forEach((line, index) => ctx.fillText(line, 90, 230 + index * 90)); return canvas;
 }
 function chunk(type, bytes) { const name = Buffer.from(type), length = Buffer.alloc(4), check = Buffer.alloc(4); length.writeUInt32BE(bytes.length); check.writeUInt32BE(crc32(Buffer.concat([name, bytes]))); return Buffer.concat([length, name, bytes, check]); }
-function scannedPdf(canvases) {
+export function scannedPdf(canvases) {
   const objects = [Buffer.from('<< /Type /Catalog /Pages 2 0 R >>'), Buffer.from(`<< /Type /Pages /Count ${canvases.length} /Kids [${canvases.map((_, i) => `${3 + i * 3} 0 R`).join(' ')}] >>`)];
   const stream = (dict, bytes) => Buffer.concat([Buffer.from(`<< ${dict} /Length ${bytes.length} >>\nstream\n`), bytes, Buffer.from('\nendstream')]);
   canvases.forEach((canvas, index) => { const page = 3 + index * 3; objects.push(Buffer.from(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 800 500] /Resources << /XObject << /Scan ${page + 1} 0 R >> >> /Contents ${page + 2} 0 R >>`)); objects.push(stream(`/Type /XObject /Subtype /Image /Width ${canvas.width} /Height ${canvas.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode`, canvas.encodeSync('jpeg', 95))); objects.push(stream('', Buffer.from('q 800 0 0 500 0 0 cm /Scan Do Q'))); });

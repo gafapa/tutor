@@ -20,9 +20,11 @@ Use Node.js 24, the committed npm lockfile and setup commands in the [project RE
 
 Remove only identified generated scratch. Resolve the absolute target, verify it stays inside the intended workspace directory, reject links/reparse points and check for learner data and active processes before recursively deleting. Use PowerShell filesystem commands end to end on Windows.
 
-`.tools/portable-package/<uuid>` contains intermediate program copies. After a completed package has a verified checksum and no process uses the staging directory, its profile-free copy can be removed. Failed staging can be useful for diagnosis; inspect first. Do not blanket-delete learner data, backups, keys, credentials, local Moodle, model/runtime caches, verified distributions or qualification receipts.
+New intermediate package copies use the OS temporary directory under `tutor-portable-package/<uuid>`; older ones used `.tools/portable-package/<uuid>`. Extracted ZIP qualification copies similarly use `tutor-portable-test/<uuid>`. After a completed package has a verified checksum and no process uses the staging directory, its profile-free copy can be removed. Failed staging can be useful for diagnosis; inspect first. Do not blanket-delete learner data, backups, keys, credentials, local Moodle, model/runtime caches, verified distributions or qualification receipts.
 
 The 2026-10-29 cleanup removed five profile-free package staging copies (4,205,215,611 logical bytes, approximately 3.92 GiB). Qualified distributions, previous download links, caches and test evidence were retained. The portable running outside the repository was left untouched.
+
+The 2026-10-30 work encountered a full project drive. Only inactive `resources` directories from extracted synthetic portable-test copies were removed (3,133,559,056 logical bytes). Their `Data`, receipts, original verified ZIPs and existing download paths were preserved. New package/test staging moved to OS temporary storage.
 
 ## Before committing
 

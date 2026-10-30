@@ -32,5 +32,6 @@ Detailed pre-0.14 narratives are retained in Git history rather than repeated in
 - [Windows 0.21](windows-0.21-verification.md): guided cycle, 222 domain tests and 25 packaged workflows.
 
 - [Windows 0.22](windows-0.22-verification.md): Moodle-first onboarding, reviewed programme PDFs, multimodal/account AI, readable history; 231 domain tests and 26 packaged workflows.
+- [Windows 0.23](windows-0.23-verification.md): shared course-adapted interface, reviewed relationships/calendar, Moodle practice, Vulkan inference, longer scanned programmes and existing native CLI sessions; 237 domain tests and 27 packaged workflows.
 
 Hashes, sizes and source provenance belong to each record. Later commits/pushes do not rebuild those artifacts or publish a binary release.

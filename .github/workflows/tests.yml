@@ -83,6 +83,7 @@ jobs:
           key: runtimes-windows-x64-${{ hashFiles('electron/*-config.ts', 'scripts/prepare-*.mjs', 'package-lock.json') }}
           path: |
             .tools/llama-runtime.zip
+            .tools/llama-vulkan.zip
             .tools/electron-downloads
             .tools/vc_redist.x64.exe
             .tools/semantic-runtime
@@ -109,7 +110,7 @@ jobs:
         run: npm run test:moodle
       - name: Build the portable ZIP without publishing
         run: npm run dist
-      - name: Verify 26 packaged workflows, portable relocation and report PDFs
+      - name: Verify 27 packaged workflows, portable relocation and report PDFs
         run: npm run test:release
       - name: Prepare the verified portable download
         run: node scripts/prepare-distribution.mjs

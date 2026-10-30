@@ -7,11 +7,20 @@ export function validateProgrammeRows(rows: unknown, text: string): ProgrammeRow
   for(const row of parsed) if(!pages[row.page-1]?.includes(row.quote))throw new Error(`La referencia de «${row.title}» no existe en la página ${row.page}. Revisa la extracción.`);
   return parsed;
 }
+export function groundProgrammeRows(rows: unknown, chunk: {page:number;text:string}): ProgrammeRow[] {
+  return programmeRows.parse(rows).map(row=>{
+    // The importer owns physical pagination; printed footers are untrusted text.
+    const words=row.quote.trim().split(/\s+/).map(word=>word.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
+    const quote=chunk.text.includes(row.quote)?row.quote:chunk.text.match(new RegExp(words.join('\\s+'),'u'))?.[0];
+    if(!quote)throw new Error(`La referencia de «${row.title}» no coincide con el fragmento original. Revisa la extracción.`);
+    return programmeRow.parse({...row,page:chunk.page,quote});
+  });
+}
 export function programmeChunks(text:string) {
   const chunks:{page:number;text:string}[]=[];
   for(const [index,page]of text.split('\f').entries())for(let start=0;start<page.length;start+=3500)if(page.slice(start,start+3800).trim())chunks.push({page:index+1,text:page.slice(start,start+3800)});
   if(!chunks.length)throw new Error('El PDF no contiene texto. Usa un modelo multimodal y revisa la transcripción del documento.');
-  if(chunks.length>120)throw new Error('Divide la programación en documentos más pequeños (máximo 120 fragmentos por importación). No se ha enviado contenido a la IA.');
+  if(chunks.length>600)throw new Error('Divide la programación en documentos más pequeños (máximo 600 fragmentos por importación). No se ha enviado contenido a la IA.');
   return chunks;
 }
 export const programmeSchema={type:'object',properties:{rows:{type:'array',items:{type:'object',properties:{kind:{type:'string',enum:['unit','competency','criterion','content','outcome']},code:{type:'string'},title:{type:'string'},description:{type:'string'},page:{type:'integer'},quote:{type:'string'}},required:['kind','code','title','description','page','quote'],additionalProperties:false}}},required:['rows'],additionalProperties:false};

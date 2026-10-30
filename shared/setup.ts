@@ -1,6 +1,7 @@
 import type { CurriculumKind } from './education.js';
 export type AIProvider = 'local' | 'codex' | 'claude';
 export interface LearningSetup {
+  schoolYear?: import('./student.js').SchoolYear; acceleration?: 'auto'|'cpu';
   onboardingCompleted?: boolean; aiProvider?: AIProvider; cloudConsent?: boolean; localModelId?: string;
   codexExecutable?: string; claudeExecutable?: string;
 }
@@ -11,7 +12,7 @@ export interface ProgrammeRow { kind: 'unit' | CurriculumKind; code: string; tit
 export interface ProgrammeDraft { id: string; subjectId: string; filename: string; rows: ProgrammeRow[]; pages?: { page: number; image: {mime:string;base64:string}; text:string }[]; warnings: string[]; }
 export interface SetupAPI {
   aiConfiguration(): Promise<AIConfiguration>;
-  configureAI(input: { provider: AIProvider; modelId: string; cloudConsent: boolean }): Promise<void>;
+  configureAI(input: { provider: AIProvider; modelId: string; cloudConsent: boolean; acceleration?:'auto'|'cpu' }): Promise<void>;
   chooseAIExecutable(provider: 'codex' | 'claude'): Promise<boolean>;
   loginAI(provider: 'codex' | 'claude'): Promise<string>;
   logoutAI(provider: 'codex' | 'claude'): Promise<void>;

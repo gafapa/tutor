@@ -11,7 +11,7 @@ const bytes = await readFile(join('release', filename)), sha256 = createHash('sh
 assert.equal(release.version, pkg.version); assert.equal(proof.version, pkg.version);
 for (const receipt of [release.portable, proof.portable]) { assert.equal(receipt.bytes, bytes.length); assert.equal(receipt.sha256, sha256); }
 for (const flag of ['zipIntegrity', 'extractedZipExecuted', 'noPasswordRequired', 'plainEducationalHistory', 'movedFolderReopened', 'portableDataPaths', 'actualBundledSemanticModelBeforeAndAfterMove']) assert.equal(proof[flag], true, flag);
-for (const flag of ['sourceModulesMatch', 'rendererAssetsMatch', 'multimodalCaptureWorkflow', 'semanticAssetsVerified', 'pdfTextAndRenderVerified']) assert.equal(release[flag], true, flag);
+for (const flag of ['sourceModulesMatch', 'rendererAssetsMatch', 'multimodalCaptureWorkflow', 'semanticAssetsVerified', 'pdfTextAndRenderVerified', 'vulkanAssetsVerified', 'studentExperienceVerified']) assert.equal(release[flag], true, flag);
 assert.ok(release.domainTests > 0 && release.packagedChecks > 0); assert.equal(release.packagedChecks, release.checks.length); assert.ok(release.checks.includes('portable'));
 assert.equal((await readFile(join('release', filename + '.sha256'), 'utf8')).trim(), `${sha256}  ${filename}`);
 const sourceCommit = process.env.GITHUB_SHA || execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(); assert.match(sourceCommit, /^[a-f0-9]{40}$/);

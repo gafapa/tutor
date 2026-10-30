@@ -2,6 +2,12 @@ import { contextBridge, ipcRenderer } from 'electron';
 import type { TutorAPI } from '../shared/types.js';
 
 const api: TutorAPI = {
+  prepareSubjectSupport: input=>ipcRenderer.invoke('tutor:prepareSubjectSupport',input),
+  commitSubjectSupport: input=>ipcRenderer.invoke('tutor:commitSubjectSupport',input),
+  discardSubjectSupport: input=>ipcRenderer.invoke('tutor:discardSubjectSupport',input),
+  prepareStudyPack: input=>ipcRenderer.invoke('tutor:prepareStudyPack',input),
+  reviewStudyAnswer: input=>ipcRenderer.invoke('tutor:reviewStudyAnswer',input),
+  saveStudyAnswer: input=>ipcRenderer.invoke('tutor:saveStudyAnswer',input),
   aiConfiguration: () => ipcRenderer.invoke('tutor:aiConfiguration'),
   configureAI: input => ipcRenderer.invoke('tutor:configureAI', input),
   chooseAIExecutable: input => ipcRenderer.invoke('tutor:chooseAIExecutable', input),

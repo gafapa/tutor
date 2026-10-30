@@ -17,6 +17,8 @@ Read [Moodle-first alpha 0.22](moodle-first-alpha.md) for the current onboarding
 
 ## Learning and Moodle workflows
 
+- [Student experience and curriculum support](student-experience.md).
+
 - [Guided learning cycle](guided-learning-cycle.md).
 - [Course setup](moodle-course-setup.md) and [supported content](moodle-content-development.md).
 - [Assignment attempt history](moodle-attempt-history.md) and [quiz review history](moodle-quiz-history.md).
@@ -26,6 +28,6 @@ Read [Moodle-first alpha 0.22](moodle-first-alpha.md) for the current onboarding
 
 ## Qualification records
 
-Start with [Windows 0.22 verification](windows-0.22-verification.md). The [verification history](verification-history.md) links previous records and distinguishes historical installer checks from the portable ZIP. Local receipts/screenshots remain in ignored development directories; tracked documents summarize their scope and limits. Historical build provenance is preserved after later source commits.
+Start with [Windows 0.23 verification](windows-0.23-verification.md). The [verification history](verification-history.md) links previous records and distinguishes historical installer checks from the portable ZIP. Local receipts/screenshots remain in ignored development directories; tracked documents summarize their scope and limits. Historical build provenance is preserved after later source commits.
 
 The [synthetic Moodle fixture guide](../tests/fixtures/moodle-live/README.md) describes test courses and deliberately varied example answers. Course provisioning/grading are separate authorized development operations; Tutor Local cannot perform them.

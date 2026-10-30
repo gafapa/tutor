@@ -1,6 +1,6 @@
 # Windows portable alpha
 
-Version 0.22 uses a portable ZIP for Windows x64. Extract the complete folder to a writable drive and open `Tutor Local.exe`. There is no workspace password or installer. No Node.js, Python or Ollama is required for the local features. Optional account AI requires a separately installed official native Codex/Claude Code executable and the user's account.
+Version 0.23 uses a portable ZIP for Windows x64. Extract the complete folder to a writable drive and open `Tutor Local.exe`. There is no workspace password or installer. No Node.js, Python or Ollama is required for the local features. Optional account AI requires a separately installed official native Codex/Claude Code executable and the user's account.
 
 ## Storage, movement and updates
 

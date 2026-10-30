@@ -8,18 +8,22 @@ The interface is currently in Spanish. Reports support personal reflection and o
 
 ## Portable use
 
-The current development version is **0.22.0 alpha**. The verified local download is `release/distribution/Tutor-Local-0.22.0-Portable.zip`, with an adjacent SHA-256 file and verification manifest. See [0.22 qualification and limits](docs/windows-0.22-verification.md). The binary has not been published to GitHub Releases.
+The current development version is **0.23.0 alpha**. The verified local download is `release/distribution/Tutor-Local-0.23.0-Portable.zip`, with an adjacent SHA-256 file and verification manifest. See [0.23 qualification and limits](docs/windows-0.23-verification.md). The binary has not been published to GitHub Releases.
 
 1. Extract the complete ZIP to a writable local drive or USB drive.
 2. Open `Tutor Local.exe`. Onboarding starts with the school Moodle connection; there is no workspace password.
 3. Keep the complete folder, including `tutor-portable.json` and the adjacent `Data` folder. Close the app before moving it or unplugging the drive.
 
-No installation, administrator privileges, Node.js, Python or Ollama is required. Document preparation, semantic search and the local AI engine are included. Settings offers six pinned, checksum-verified local models: four text-only Qwen models and multimodal Gemma 4 E2B/E4B (including their visual projectors), with a RAM-based recommendation and detected CPU/GPU information. The included runtime uses CPU. Alternatively, authorize context processing through your own Claude/Codex account and its separately installed official native executable. Planning, materials and the exercise bank work without that download.
+No installation, administrator privileges, Node.js, Python or Ollama is required. Document preparation, semantic search and the local AI engine are included. Settings offers six pinned, checksum-verified local models: four text-only Qwen models and multimodal Gemma 4 E2B/E4B (including their visual projectors), with a RAM-based recommendation and detected CPU/GPU information. The runtime can select a compatible Vulkan GPU automatically, with CPU fallback and a CPU-only setting. Alternatively, authorize context processing through your own Claude/Codex account and its separately installed official native executable. Planning, materials and the exercise bank work without that download.
 
 To update, extract the newer ZIP into a new folder and copy the complete `Data` folder with both versions closed. Keep the old folder and an independent backup until the new version opens successfully. This alpha uses a new readable SQLite workspace. Earlier encrypted profiles are preserved without migration or a compatibility promise. Moodle credentials are protected for the Windows account/computer; reconnect after moving to another account or PC. See [portable operation and storage](docs/windows-portable.md).
 
+Claude/Codex reuse an existing session in the selected official CLI; browser sign-in is needed only when that tool is signed out. Leaving account AI in Tutor revokes Tutor's permission and returns to local processing without logging out the CLI. Tutor does not copy credential files.
+
 ## Implemented learning tools
 
+- A shared interface from 1st ESO to 2nd Bachillerato, course-adapted tutoring guidance, five primary navigation options and a compact bottom dock in narrow windows.
+- Reviewed Moodle task/curriculum links, editable estimated unit dates and optional local study tasks. Three-part practice from current Moodle work saves ungraded personal attempts. See [student support](docs/student-experience.md).
 - Separate subjects, curriculum, units, materials and versioned sources. Import textual/scanned PDF, DOCX, PPTX, saved HTML, notes and existing subtitle transcripts; images/scanned pages use the selected multimodal model and require text review.
 - Daily planning, timed study sessions, exercises, flashcards, personal mock exams, goals and progress views with supporting evidence.
 - Moodle synchronization, assignments, published feedback/grades, permitted submission/quiz histories, offline originals and attempt comparison. Imported grades do not establish mastery.

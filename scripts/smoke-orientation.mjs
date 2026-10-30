@@ -44,6 +44,8 @@ try{
     AIService.prototype.complete=async function(messages){const page=Number(messages.at(-1).content.match(/Page (\d+)/)[1]);return JSON.stringify({rows:[{kind:page===1?'unit':'criterion',code:page===1?'U1':'C1',title:page===1?'Fracciones':'Suma de fracciones',description:'Propuesta sintética para revisar.',page,quote:page===1?'Fracciones: partes iguales de un todo.':'Segunda pagina: suma de fracciones con el mismo denominador.'}]});};
     dialog.showOpenDialog=async()=>({canceled:false,filePaths:[pdf]});
   },fixtures.pdf);
+  const cachedProgramme=await window.evaluate(async()=>{const before=await window.tutor.snapshot();const subjectId=before.subjects[0].id;const report=await window.tutor.importMaterials(subjectId);const after=await window.tutor.snapshot();return {imported:report.imported,material:after.materials.find(row=>!before.materials.some(previous=>previous.id===row.id)),count:after.materials.length};});
+  assert.equal(cachedProgramme.imported,1);assert.ok(cachedProgramme.material);
   await window.getByRole('button',{name:'Importar programación PDF',exact:true}).click();
   await window.getByRole('button',{name:'Guardar unidades y currículo',exact:true}).waitFor();
   await window.getByLabel('Título',{exact:true}).first().fill('Fracciones revisadas');
@@ -52,6 +54,7 @@ try{
   await window.getByRole('button',{name:'Abrir mi espacio',exact:true}).click();
   await window.getByRole('heading',{name:'Tu trabajo en Moodle',exact:true}).waitFor();
   const snapshot=await window.evaluate(()=>window.tutor.snapshot());assert.equal(snapshot.settings.onboardingCompleted,true);assert.equal(snapshot.units[0].title,'Fracciones revisadas');assert.equal(snapshot.curriculum.length,1);assert.equal(snapshot.attempts.length,0);
+  assert.equal(snapshot.materials.length,cachedProgramme.count);assert.deepEqual(snapshot.units[0].materialIds,[cachedProgramme.material.id]);
   await window.screenshot({path:'test-results/orientation-moodle-support-960.png'});
   await app.close();app=undefined;assert.equal((await readFile(join(directory,'learning.sqlite'))).subarray(0,15).toString(),'SQLite format 3');
   await open();await window.getByRole('heading',{name:'Tu trabajo en Moodle',exact:true}).waitFor();const reopened=await window.evaluate(()=>window.tutor.snapshot());assert.equal(reopened.units.length,1);assert.ok(reopened.lmsConnections.every(c=>c.hasCredentials));

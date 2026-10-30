@@ -1,6 +1,6 @@
 {
   "name": "tutor-local",
-  "version": "0.22.0",
+  "version": "0.23.0",
   "private": true,
   "description": "Un espacio personal de aprendizaje con datos e inteligencia artificial locales.",
   "author": "Tutor Local",
@@ -18,8 +18,8 @@
     "test:assessment": "node scripts/smoke-assessment.mjs",
     "test:rubrics": "node scripts/smoke-rubrics.mjs",
     "test:rubrics:ai": "node scripts/smoke-rubrics-ai.mjs",
-    "prepare:runtime": "node scripts/prepare-runtime.mjs && node scripts/prepare-vc-runtime.mjs && npm run prepare:semantic",
-    "dist": "npm run build && node scripts/prepare-semantic.mjs && electron-builder --win --dir --x64 --publish never && node scripts/package-portable.mjs",
+    "prepare:runtime": "node scripts/prepare-runtime.mjs && node scripts/prepare-vc-runtime.mjs && npm run prepare:semantic && node scripts/prepare-vulkan.mjs",
+    "dist": "npm run build && node scripts/prepare-vulkan.mjs && node scripts/prepare-semantic.mjs && electron-builder --win --dir --x64 --publish never && node scripts/package-portable.mjs",
     "test:moodle": "node scripts/smoke-moodle.mjs",
     "test:moodle:desktop": "node scripts/smoke-moodle-desktop.mjs",
     "test:moodle:courses": "node scripts/smoke-moodle-courses.mjs",
@@ -44,7 +44,9 @@
     "test:portable": "node scripts/smoke-portable.mjs",
     "test:guided": "node scripts/smoke-guided-practice.mjs",
     "test:orientation": "node scripts/smoke-orientation.mjs",
-    "test:multimodal": "node --import tsx scripts/qa-multimodal.mjs"
+    "test:multimodal": "node --import tsx scripts/qa-multimodal.mjs",
+    "test:student": "node scripts/smoke-student.mjs",
+    "test:gpu": "node --import tsx scripts/qa-gpu.mjs"
   },
   "dependencies": {
     "@huggingface/tokenizers": "0.2.0",
@@ -120,6 +122,16 @@
         "to": "app.asar.unpacked/node_modules/onnxruntime-node/bin/napi-v6/win32/x64",
         "filter": [
           "*140*.dll"
+        ]
+      },
+      {
+        "from": ".tools/llama-vulkan",
+        "to": "llama-vulkan",
+        "filter": [
+          "*.dll",
+          "llama-server.exe",
+          "LICENSE*",
+          "*info.json"
         ]
       }
     ],
