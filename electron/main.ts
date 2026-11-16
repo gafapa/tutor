@@ -1,9 +1,9 @@
 import { app, BrowserWindow, dialog, ipcMain, safeStorage, session, powerMonitor, shell, type IpcMainInvokeEvent } from 'electron';
 import { randomBytes, createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import { Store } from './store.js';
 import { AIService } from './ai-service.js';
@@ -66,6 +66,16 @@ else if (process.env.TUTOR_DATA_DIR) app.setPath('userData', resolve(process.env
 else if (!app.isPackaged) app.setPath('userData', join(app.getPath('appData'), 'Tutor Local Desarrollo'));
 const developmentURL = !app.isPackaged && process.env.TUTOR_DEV_URL === 'http://127.0.0.1:5173' ? process.env.TUTOR_DEV_URL : undefined;
 const appFile = join(__dirname, '../../dist/index.html');
+// Chromium reports the frame URL with the long on-disk path, while __dirname keeps whatever form the
+// executable was launched with (e.g. an 8.3 short path such as C:\Users\RUNNER~1\...). Compare canonical paths.
+let trustedFrameURL: string | undefined;
+function isAppFrame(url: string | undefined) {
+  if (!url) return false;
+  if (url === trustedFrameURL || (developmentURL && url === `${developmentURL}/`)) return true;
+  if (!url.startsWith('file:')) return false;
+  try { if (realpathSync.native(fileURLToPath(url)) !== realpathSync.native(appFile)) return false; } catch { return false; }
+  trustedFrameURL = url; return true;
+}
 let mainWindow: BrowserWindow;
 let store: Store;
 let model: AIService;
@@ -88,8 +98,7 @@ function ensureIdle(allowCapture = false) {
 }
 function handle(name: string, callback: (value: unknown) => unknown) {
   ipcMain.handle(`tutor:${name}`, (event: IpcMainInvokeEvent, value: unknown) => {
-    const url = event.senderFrame?.url;
-    if (event.sender.id !== mainWindow.webContents.id || (url !== pathToFileURL(appFile).href && url !== `${developmentURL}/`)) throw new Error('Origen no autorizado.');
+    if (event.sender.id !== mainWindow.webContents.id || !isAppFrame(event.senderFrame?.url)) throw new Error('Origen no autorizado.');
     if (store?.hasActiveMock() && !['snapshot', 'mockExam', 'saveMockAnswer', 'selectMockQuestion', 'finishMockExam', 'cancelMockExam', 'modelStatus', 'cancelChat', 'cancelDownload'].includes(name)) throw new Error('Las ayudas y los cambios de datos estarán disponibles al terminar el simulacro.');
     if (['eraseData','importData','deleteSubject','startMockExam'].includes(name)) { programmeDrafts.clear(); clearSupportDrafts(); activeChatController?.abort(); model?.cancelChat(); }
     if (/^(delete|erase|clearMoodleData|importData)/.test(name) || ['addNote', 'importMaterials', 'savePortfolio', 'copyMoodleSubmission', 'copyMoodleQuizReview', 'copyMoodleComparison', 'saveRubric', 'commitOcrDraft', 'reviewCapture', 'updateSubject', 'startMockExam'].includes(name)) semantic?.invalidate();
@@ -479,7 +488,7 @@ else {
     mainWindow.webContents.on('did-start-navigation', details => { if (details.isMainFrame && !details.isSameDocument) { ocr.cancel(); semantic.cancel(); activeChatController?.abort(); model.cancelChat(); } });
     mainWindow.webContents.on('render-process-gone', () => { ocr.cancel(); semantic.cancel(); activeChatController?.abort(); model.cancelChat(); });
     mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-    mainWindow.webContents.on('will-navigate', (event, url) => { if (url !== pathToFileURL(appFile).href && url !== `${developmentURL}/`) event.preventDefault(); });
+    mainWindow.webContents.on('will-navigate', (event, url) => { if (!isAppFrame(url)) event.preventDefault(); });
     registerHandlers();
     mainWindow.once('ready-to-show', () => { if (!process.env.TUTOR_SMOKE) mainWindow.show(); });
     if (developmentURL) await mainWindow.loadURL(developmentURL);
